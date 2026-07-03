@@ -81,9 +81,10 @@ input, select, textarea {
 .searchrow input, .searchrow select { background: var(--paper); flex: 1; min-width: 160px; }
 
 .section-label { display: flex; align-items: center; gap: 10px; margin: 36px 0 16px; }
-.section-label .tag {
+.tag {
   background: var(--mustard); color: var(--ink); font-size: 11px; font-weight: 700;
   letter-spacing: .08em; padding: 3px 8px; border-radius: 2px; text-transform: uppercase;
+  display: inline-block;
 }
 .section-label h3 { font-size: 20px; color: var(--paper); }
 
@@ -103,21 +104,51 @@ input, select, textarea {
   border-radius: 50%; background: var(--rust); box-shadow: 0 2px 3px rgba(0,0,0,.4);
 }
 .card img { width: 100%; height: 130px; object-fit: cover; border-radius: 2px; display: block; background: #ddd; }
-.card .ribbon {
+.ribbon {
   position: absolute; top: 8px; right: -6px; background: var(--mustard); color: var(--ink);
   font-size: 10px; font-weight: 700; padding: 3px 10px; letter-spacing: .06em;
-  transform: rotate(4deg); box-shadow: 0 2px 4px rgba(0,0,0,.3);
+  transform: rotate(4deg); box-shadow: 0 2px 4px rgba(0,0,0,.3); z-index: 1;
 }
-.card .ribbon.sold { background: var(--rust); color: #fff; }
+.ribbon.sold { background: var(--rust); color: #fff; }
 .card h3, .card h4 { font-size: 15px; margin-top: 10px; }
 .card .price { font-family: 'IBM Plex Mono', monospace; font-size: 15px; color: var(--teal); margin-top: 4px; }
 .card .meta { font-size: 11px; color: #6b6b63; margin-top: 6px; display: flex; justify-content: space-between; }
-.card .bidbox { background: #f1f6f4; border-radius: 3px; padding: 7px 9px; margin-top: 8px; font-size: 11.5px; color: #3a4a45; }
-.card .bidbox .hi { font-family: 'IBM Plex Mono', monospace; color: var(--teal); font-weight: 700; }
+.card .bidbox { padding: 7px 9px; margin-top: 8px; font-size: 11.5px; color: #3a4a45; }
+.card .bidbox .hi { font-size: inherit; }
 
 .note { color: #8a8374; font-size: 12px; }
 .note-light { color: #cfd9d4; font-size: 12px; }
 .error { color: var(--rust); font-size: 13px; margin-top: 6px; }
+
+/* LISTING DETAIL */
+.gallery { position: relative; margin-bottom: 16px; }
+.gallery .main-media {
+  width: 100%; max-height: 420px; object-fit: cover; border-radius: 4px;
+  display: block; background: #e2ddd0;
+}
+.gallery .thumbs { display: flex; gap: 8px; margin-top: 8px; overflow-x: auto; }
+.gallery .thumbs button {
+  padding: 0; background: none; width: 60px; height: 60px; flex-shrink: 0;
+  border: 2px solid transparent; border-radius: 3px; overflow: hidden; opacity: .7;
+}
+.gallery .thumbs button:hover { opacity: 1; }
+.gallery .thumbs button.active { border-color: var(--teal); opacity: 1; }
+.gallery .thumbs img, .gallery .thumbs video { width: 100%; height: 100%; object-fit: cover; display: block; }
+
+.detail-title-row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-top: 12px; }
+.description { white-space: pre-wrap; line-height: 1.55; color: var(--ink); }
+.price-lg { font-size: 20px; color: var(--teal); margin: 14px 0; }
+
+.bidbox { background: #f1f6f4; border-radius: 4px; padding: 14px 16px; margin-bottom: 14px; }
+.bidbox .hi { font-family: 'IBM Plex Mono', monospace; color: var(--teal); font-weight: 700; font-size: 17px; }
+
+button.ghost {
+  background: none; color: #8a8374; padding: 8px 4px; font-weight: 500;
+  text-decoration: underline; text-underline-offset: 2px;
+}
+button.ghost:hover { background: none; color: var(--rust); }
+
+.detail-footer { margin-top: 22px; padding-top: 16px; border-top: 1px solid #e6e0d2; }
 
 /* FORMS / DETAIL PANELS (lighter card, not pinned) */
 .panel {

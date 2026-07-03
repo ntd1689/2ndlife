@@ -22,7 +22,7 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
     })
   );
   if (!listing) return NextResponse.json({ error: "Not found" }, { status: 404 });
-  if (listing.status === "archived" || listing.status === "deleted") {
+  if (listing.status === "archived" || listing.status === "deleted" || listing.status === "removed") {
     return NextResponse.json({ error: "Not found" }, { status: 404 });
   }
   return NextResponse.json({ listing });
@@ -199,8 +199,14 @@ export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ 
   if (!listing || listing.userId !== userId) {
     return NextResponse.json({ error: "Not found" }, { status: 404 });
   }
-  if (listing.status === "deleted") {
-    return NextResponse.json({ error: "Listing already deleted" }, { status: 400 });
+  // "removed" listings were hidden by an admin (e.g. after a report) — block
+  // the owner's self-archive path so they can't route through /restore to
+  // undo that. Everything else (active/expired/sold) can still be archived.
+  if (listing.status === "removed") {
+    return NextResponse.json({ error: "This listing was removed by a moderator and can't be edited" }, { status: 400 });
+  }
+  if (listing.status === "deleted" || listing.status === "archived") {
+    return NextResponse.json({ error: "Listing already archived or deleted" }, { status: 400 });
   }
 
   const archived = await withRetry(() =>

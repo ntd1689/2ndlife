@@ -21,6 +21,13 @@ enum ListingStatus {
   archived
   deleted
   sold
+  removed // hidden by an admin, e.g. after a report — distinct from owner-initiated "archived" so the owner's self-restore can't undo it
+}
+
+enum ReportStatus {
+  open
+  resolved
+  dismissed
 }
 
 enum MediaType {
@@ -60,6 +67,7 @@ model User {
   listings      Listing[]
   bids          Bid[]
   payments      Payment[]
+  reports       Report[]
 }
 
 // Short-lived OTP codes for email verification (sent via Resend, no SMS cost)
@@ -130,6 +138,7 @@ model Listing {
   media         ListingMedia[]
   bids          Bid[]
   payments      Payment[]
+  reports       Report[]
 
   @@index([status])
   @@index([parishId])
@@ -176,4 +185,19 @@ model Payment {
 
   createdAt       DateTime        @default(now())
   completedAt     DateTime?
+}
+
+model Report {
+  id         String       @id @default(cuid())
+  listingId  String
+  listing    Listing      @relation(fields: [listingId], references: [id])
+  reporterId String
+  reporter   User         @relation(fields: [reporterId], references: [id])
+  reason     String
+  status     ReportStatus @default(open)
+  createdAt  DateTime     @default(now())
+  resolvedAt DateTime?
+
+  @@index([status])
+  @@index([listingId])
 }

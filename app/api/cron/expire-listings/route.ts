@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma, withRetry } from "@/lib/prisma";
-import { deleteObject } from "@/lib/storage";
+import { purgeListingMedia } from "@/lib/listings";
 import { ARCHIVE_WINDOW_DAYS } from "@/lib/data/categories";
 import { getCronSecret } from "@/lib/env";
 
@@ -24,25 +24,17 @@ export async function GET(req: NextRequest) {
     })
   );
 
-  // 2. Permanently delete media for listings archived 30+ days ago.
+  // 2. Permanently delete media for listings archived/removed 30+ days ago.
   const archiveCutoff = new Date(now.getTime() - ARCHIVE_WINDOW_DAYS * 86400000);
   const toDelete = await withRetry(() =>
     prisma.listing.findMany({
-      where: { status: { in: ["expired", "archived"] }, archivedAt: { lt: archiveCutoff } },
+      where: { status: { in: ["expired", "archived", "removed"] }, archivedAt: { lt: archiveCutoff } },
       include: { media: true },
     })
   );
 
   for (const listing of toDelete) {
-    for (const media of listing.media) {
-      try {
-        const key = media.url.split("/").slice(-2).join("/"); // matches "listings/<uuid>.ext"
-        await deleteObject(key);
-      } catch (e) {
-        console.error("Failed to delete media", media.id, e);
-      }
-    }
-    await withRetry(() => prisma.listingMedia.deleteMany({ where: { listingId: listing.id } }));
+    await purgeListingMedia(listing.id, listing.media);
     await withRetry(() =>
       prisma.listing.update({
         where: { id: listing.id },

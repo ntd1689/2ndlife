@@ -17,7 +17,7 @@ type Listing = {
   title: string;
   description: string;
   buyNowPrice: number;
-  status: "active" | "expired" | "archived" | "deleted" | "sold";
+  status: "active" | "expired" | "archived" | "deleted" | "sold" | "removed";
   createdAt: string;
   archivedAt: string | null;
   parish: { name: string };
@@ -358,6 +358,11 @@ export default function MyAdsPage() {
                 <> · Archived {new Date(listing.archivedAt).toLocaleDateString()}</>
               )}
             </p>
+            {listing.status === "removed" && (
+              <p className="error" style={{ marginTop: 0 }}>
+                This listing was removed by a moderator and is no longer visible to buyers.
+              </p>
+            )}
 
             {editingId === listing.id ? (
               <>
@@ -509,14 +514,16 @@ export default function MyAdsPage() {
                   <button onClick={() => startEdit(listing)} disabled={listing.status !== "active"}>
                     Edit
                   </button>
-                  <button
-                    className="secondary"
-                    onClick={() => setArchiveConfirmListing(listing)}
-                    disabled={listing.status === "archived" || actingListingId === listing.id}
-                  >
-                    {listing.status === "archived" ? "Archived" : "Delete (archive 30 days)"}
-                  </button>
-                  {listing.status !== "archived" && (
+                  {listing.status !== "removed" && (
+                    <button
+                      className="secondary"
+                      onClick={() => setArchiveConfirmListing(listing)}
+                      disabled={listing.status === "archived" || actingListingId === listing.id}
+                    >
+                      {listing.status === "archived" ? "Archived" : "Delete (archive 30 days)"}
+                    </button>
+                  )}
+                  {listing.status !== "archived" && listing.status !== "removed" && (
                     <Link href={`/listing/${listing.id}`}>
                       <button>View</button>
                     </Link>

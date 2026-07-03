@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { getSessionUserId } from "@/lib/auth";
 import { prisma, withRetry } from "@/lib/prisma";
+import { getAdminEmails } from "@/lib/env";
 
 export default async function SiteHeader() {
   const userId = await getSessionUserId();
@@ -8,10 +9,11 @@ export default async function SiteHeader() {
     ? await withRetry(() =>
         prisma.user.findUnique({
           where: { id: userId },
-          select: { id: true },
+          select: { id: true, email: true },
         })
       )
     : null;
+  const isAdmin = !!user && getAdminEmails().has(user.email.toLowerCase());
 
   return (
     <header className="site-header">
@@ -28,6 +30,11 @@ export default async function SiteHeader() {
               <Link href="/my-ads">
                 <button>Manage ads</button>
               </Link>
+              {isAdmin && (
+                <Link href="/admin">
+                  <button className="secondary">Admin</button>
+                </Link>
+              )}
               <form action="/api/auth/logout" method="post">
                 <button type="submit" className="secondary">Log out</button>
               </form>

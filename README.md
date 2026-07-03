@@ -25,10 +25,16 @@ This is the production scaffold: Next.js + PostgreSQL (Prisma) + Resend (email O
 - Visual design ported from the approved prototype: header with your logo,
   pinned-card listings, mustard "featured" ribbons, teal/cream palette,
   Fraunces/Inter/IBM Plex Mono type — see `app/globals.css`
+- **Admin moderation** at `/admin` — buyers can report a listing from the
+  listing detail page; admins (anyone whose verified email is listed in
+  `ADMIN_EMAILS`) see an open-reports queue and can hide, unhide, or
+  permanently delete any listing. A hidden ("removed") listing is distinct
+  from an owner's own "archived" one, so the owner can't self-restore
+  something a moderator took down. Log in at `/admin` the same way as
+  everywhere else — email + one-time code, no separate admin password.
 
 **Left to finish before this is fully production-ready — see "Next steps" at the bottom:**
 - Lynk integration itself (blocked on you getting merchant API access)
-- Admin moderation tools (a way to hide/remove a reported listing)
 - A few smaller pages still use plain inline styles (listing detail actions) —
   functional, just not as polished as the homepage/cards yet
 - A way for a user to add/change their phone number later from a profile page
@@ -136,10 +142,11 @@ PayPal payments for listing upgrades.
 
 ## 4. Next steps I'd recommend, in order
 
-1. **Apply for your Lynk merchant account** so it's ready to implement by the
+1. **Set `ADMIN_EMAILS`** in your production environment variables to your
+   own verified email (comma-separate more if you have a small mod team),
+   so `/admin` is usable on day one.
+2. **Apply for your Lynk merchant account** so it's ready to implement by the
    time everything else is live.
-2. **Add basic admin tooling** — a way to hide/remove a listing if it's
-   reported, since you'll need this from day one.
 3. **Polish remaining pages** — the listing detail page's action buttons are
    functional but still plain; the homepage and listing cards already match
    the approved design.

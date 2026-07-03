@@ -34,6 +34,15 @@ export function getPaypalWebhookId(): string {
   return requireEnv("PAYPAL_WEBHOOK_ID");
 }
 
+export function getAdminEmails(): Set<string> {
+  return new Set(
+    (process.env.ADMIN_EMAILS || "")
+      .split(",")
+      .map((e) => e.trim().toLowerCase())
+      .filter(Boolean)
+  );
+}
+
 export const env = {
   isProd,
 };
