@@ -1,19 +1,24 @@
 import { prisma } from "@/lib/prisma";
 import Link from "next/link";
+import SearchBox from "./components/SearchBox";
+import CategorySidebar from "./components/CategorySidebar";
 
 export const dynamic = "force-dynamic";
 
 export default async function HomePage({
   searchParams,
 }: {
-  searchParams: { q?: string; parish?: string; category?: string };
+  searchParams: Promise<{ q?: string; parish?: string; category?: string; subcategory?: string }>;
 }) {
+  const params = await searchParams;
+
   const listings = await prisma.listing.findMany({
     where: {
       status: "active",
-      title: searchParams.q ? { contains: searchParams.q, mode: "insensitive" } : undefined,
-      parish: searchParams.parish ? { name: searchParams.parish } : undefined,
-      category: searchParams.category ? { name: searchParams.category } : undefined,
+      title: params.q ? { contains: params.q, mode: "insensitive" } : undefined,
+      parish: params.parish ? { name: params.parish } : undefined,
+      category: params.category ? { name: params.category } : undefined,
+      subcategory: params.subcategory ? { name: params.subcategory } : undefined,
     },
     include: {
       media: { orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }] },
@@ -36,24 +41,30 @@ export default async function HomePage({
         Sell it, rent it, or bid for it — second hand, second chance. Free for the first 7 days.
       </p>
 
-      <form className="searchrow">
-        <input name="q" placeholder="Search listings…" defaultValue={searchParams.q} />
-        <button type="submit">Search</button>
-      </form>
+      <SearchBox q={params.q} category={params.category} subcategory={params.subcategory} />
 
-      {featured.length > 0 && (
-        <>
-          <div className="section-label"><span className="tag">Featured</span><h3>Top of the board</h3></div>
-          <div className="grid">
-            {featured.map((l) => <ListingCard key={l.id} listing={l} />)}
+      <div className="browse-layout">
+        <CategorySidebar activeCategory={params.category} activeSubcategory={params.subcategory} />
+
+        <div className="browse-main">
+          {featured.length > 0 && (
+            <>
+              <div className="section-label"><span className="tag">Featured</span><h3>Top of the board</h3></div>
+              <div className="grid">
+                {featured.map((l) => <ListingCard key={l.id} listing={l} />)}
+              </div>
+            </>
+          )}
+
+          <div className="section-label">
+            <span className="tag">Browse</span>
+            <h3>{params.subcategory || params.category || "All listings"}</h3>
           </div>
-        </>
-      )}
-
-      <div className="section-label"><span className="tag">Browse</span><h3>All listings</h3></div>
-      <div className="grid">
-        {rest.map((l) => <ListingCard key={l.id} listing={l} />)}
-        {listings.length === 0 && <p className="note-light">No listings match yet.</p>}
+          <div className="grid">
+            {rest.map((l) => <ListingCard key={l.id} listing={l} />)}
+            {listings.length === 0 && <p className="note-light">No listings match yet.</p>}
+          </div>
+        </div>
       </div>
     </div>
   );

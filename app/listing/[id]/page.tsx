@@ -1,6 +1,8 @@
 "use client";
 import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
+import SearchBox from "../../components/SearchBox";
+import CategoryBreadcrumb from "../../components/CategoryBreadcrumb";
 
 export default function ListingPage() {
   const { id } = useParams<{ id: string }>();
@@ -22,7 +24,14 @@ export default function ListingPage() {
 
   useEffect(() => { load(); }, [id]);
 
-  if (!listing) return <div className="wrap">Loading…</div>;
+  if (!listing) {
+    return (
+      <div className="wrap" style={{ maxWidth: 720 }}>
+        <SearchBox />
+        <p className="note-light">Loading…</p>
+      </div>
+    );
+  }
 
   const media: { id: string; url: string; type: "photo" | "video" }[] = listing.media;
   const current = media[activeMedia] ?? media[0];
@@ -75,6 +84,9 @@ export default function ListingPage() {
 
   return (
     <div className="wrap" style={{ maxWidth: 720 }}>
+      <SearchBox />
+      <CategoryBreadcrumb category={listing.category.name} subcategory={listing.subcategory.name} />
+
       <div className="panel" style={{ maxWidth: "none" }}>
         {media.length > 0 && current && (
           <div className="gallery">
