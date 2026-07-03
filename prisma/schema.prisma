@@ -1,0 +1,179 @@
+// 2ndLife database schema
+// Run `npx prisma migrate dev --name init` after setting DATABASE_URL.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum ListingPlan {
+  free
+  unlimited
+}
+
+enum ListingStatus {
+  active
+  expired
+  archived
+  deleted
+  sold
+}
+
+enum MediaType {
+  photo
+  video
+}
+
+enum PaymentType {
+  unlimited_listing
+  featured
+  relist
+}
+
+enum PaymentProvider {
+  paypal
+  lynk
+}
+
+enum PaymentStatus {
+  pending
+  completed
+  failed
+}
+
+enum UserType {
+  advertiser
+}
+
+model User {
+  id            String     @id @default(cuid())
+  email         String     @unique
+  emailVerified Boolean    @default(false)
+  phone         String?    @unique // contact info only — not SMS-verified, entered by the user
+  userType      UserType   @default(advertiser)
+  createdAt     DateTime   @default(now())
+
+  listings      Listing[]
+  bids          Bid[]
+  payments      Payment[]
+}
+
+// Short-lived OTP codes for email verification (sent via Resend, no SMS cost)
+model OtpCode {
+  id        String   @id @default(cuid())
+  email     String
+  code      String
+  expiresAt DateTime
+  consumed  Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  @@index([email])
+}
+
+model Parish {
+  id       String    @id @default(cuid())
+  name     String    @unique
+  listings Listing[]
+}
+
+model Category {
+  id            String         @id @default(cuid())
+  name          String         @unique
+  subcategories Subcategory[]
+  listings      Listing[]
+}
+
+model Subcategory {
+  id         String    @id @default(cuid())
+  name       String
+  categoryId String
+  category   Category  @relation(fields: [categoryId], references: [id])
+  listings   Listing[]
+
+  @@unique([categoryId, name])
+}
+
+model Listing {
+  id            String        @id @default(cuid())
+  userId        String
+  user          User          @relation(fields: [userId], references: [id])
+
+  title         String
+  description   String
+  instagramUrl  String?
+
+  parishId      String
+  parish        Parish        @relation(fields: [parishId], references: [id])
+  categoryId    String
+  category      Category      @relation(fields: [categoryId], references: [id])
+  subcategoryId String
+  subcategory   Subcategory   @relation(fields: [subcategoryId], references: [id])
+
+  plan          ListingPlan   @default(free)
+  featured      Boolean       @default(false)
+  status        ListingStatus @default(active)
+
+  buyNowPrice   Int           // JMD, whole dollars
+  biddingEnabled Boolean      @default(false)
+  minBid        Int?          // JMD
+  bidEndAt      DateTime?
+
+  createdAt     DateTime      @default(now())
+  expiresAt     DateTime?     // set on create for free-plan listings (createdAt + 7 days)
+  archivedAt    DateTime?     // set when status -> expired (archive window starts)
+  deletedAt     DateTime?     // set when media is permanently removed
+
+  media         ListingMedia[]
+  bids          Bid[]
+  payments      Payment[]
+
+  @@index([status])
+  @@index([parishId])
+  @@index([categoryId, subcategoryId])
+}
+
+model ListingMedia {
+  id         String    @id @default(cuid())
+  listingId  String
+  listing    Listing   @relation(fields: [listingId], references: [id])
+  type       MediaType
+  url        String
+  sizeBytes  Int
+  sortOrder  Int       @default(0)
+  createdAt  DateTime  @default(now())
+
+  @@index([listingId, sortOrder])
+}
+
+model Bid {
+  id          String   @id @default(cuid())
+  listingId   String
+  listing     Listing  @relation(fields: [listingId], references: [id])
+  bidderId    String
+  bidder      User     @relation(fields: [bidderId], references: [id])
+  amount      Int      // JMD
+  createdAt   DateTime @default(now())
+
+  @@index([listingId])
+}
+
+model Payment {
+  id              String          @id @default(cuid())
+  userId          String
+  user            User            @relation(fields: [userId], references: [id])
+  listingId       String?
+  listing         Listing?        @relation(fields: [listingId], references: [id])
+
+  type            PaymentType
+  provider        PaymentProvider
+  amountJmd       Int
+  providerRef     String?         // PayPal order id / Lynk transaction id
+  status          PaymentStatus   @default(pending)
+
+  createdAt       DateTime        @default(now())
+  completedAt     DateTime?
+}
