@@ -24,7 +24,7 @@ export async function POST(_req: NextRequest, { params }: { params: Promise<{ id
     return NextResponse.json({ error: "Offer already accepted" }, { status: 400 });
   }
   if (offer.listing.status !== "active") {
-    return NextResponse.json({ error: "Listing is no longer active" }, { status: 400 });
+    return NextResponse.json({ error: "Ad is no longer active" }, { status: 400 });
   }
 
   // Flip the listing active -> sold atomically so two accepts (or an accept
@@ -43,7 +43,7 @@ export async function POST(_req: NextRequest, { params }: { params: Promise<{ id
     })
   );
   if (!accepted) {
-    return NextResponse.json({ error: "Listing is no longer active" }, { status: 409 });
+    return NextResponse.json({ error: "Ad is no longer active" }, { status: 409 });
   }
 
   // Tell the winning buyer how to reach the seller. Best-effort: the deal is

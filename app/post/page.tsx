@@ -1,7 +1,8 @@
 "use client";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import PayPalCheckoutButtons from "../components/PayPalCheckoutButtons";
+import DescriptionEditor from "../components/DescriptionEditor";
 import { MAX_PHOTOS } from "@/lib/data/categories";
 
 const PARISHES = [
@@ -27,6 +28,7 @@ type Step = "email" | "code" | "phone" | "details" | "plan" | "pay" | "done";
 export default function PostAdPage() {
   const router = useRouter();
   const [step, setStep] = useState<Step>("email");
+  const [checkingSession, setCheckingSession] = useState(true);
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
 
@@ -48,6 +50,31 @@ export default function PostAdPage() {
   const [plan, setPlan] = useState<"free" | "unlimited">("free");
   const [featured, setFeatured] = useState(false);
   const [listingId, setListingId] = useState<string | null>(null);
+
+  // Already-logged-in users skip email verification entirely.
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await fetch("/api/me");
+        if (!res.ok) return;
+        const data = await res.json();
+        if (cancelled || !data.user) return;
+        setEmail(data.user.email);
+        if (data.user.phone) {
+          setPhone(data.user.phone);
+          setStep("details");
+        } else {
+          setStep("phone");
+        }
+      } catch {
+        // Not logged in or network issue — fall back to the email step.
+      } finally {
+        if (!cancelled) setCheckingSession(false);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, []);
 
   async function sendCode() {
     setError("");
@@ -139,6 +166,14 @@ export default function PostAdPage() {
       setError("Fill in title, parish, category, and subcategory");
       return;
     }
+    if (title.trim().length < 3) {
+      setError("Title must be at least 3 characters");
+      return;
+    }
+    if (!description.trim()) {
+      setError("Please add a description");
+      return;
+    }
     if (price && (!Number(price) || Number(price) < 1)) {
       setError("Asking price must be a positive amount, or leave it blank for offers-only");
       return;
@@ -175,7 +210,7 @@ export default function PostAdPage() {
         }),
       });
       const data = await res.json();
-      if (!res.ok) throw new Error(typeof data.error === "string" ? data.error : "Could not publish listing");
+      if (!res.ok) throw new Error(typeof data.error === "string" ? data.error : "Could not publish ad");
 
       setListingId(data.listing.id);
       setStep(plan === "unlimited" || featured ? "pay" : "done");
@@ -222,7 +257,13 @@ export default function PostAdPage() {
       <h1>Post an ad</h1>
       {error && <p className="error">{error}</p>}
 
-      {step === "email" && (
+      {step === "email" && checkingSession && (
+        <div className="panel">
+          <p className="note">Checking your account…</p>
+        </div>
+      )}
+
+      {step === "email" && !checkingSession && (
         <div className="panel">
           <div className="demo-note">We'll email you a one-time code to verify your account — no phone or SMS needed to sign up.</div>
           <div className="field">
@@ -292,7 +333,10 @@ export default function PostAdPage() {
               </select>
             </div>
           )}
-          <div className="field"><label>Description</label><textarea value={description} onChange={(e) => setDescription(e.target.value)} /></div>
+          <div className="field">
+            <label>Description</label>
+            <DescriptionEditor value={description} onChange={setDescription} />
+          </div>
           <div className="field"><label>Instagram or website (optional)</label><input value={instagramUrl} onChange={(e) => setInstagramUrl(e.target.value)} /></div>
           <div className="field">
             <label>Photos (up to {MAX_PHOTOS})</label>
@@ -318,7 +362,7 @@ export default function PostAdPage() {
               <option value="1">1 day</option><option value="3">3 days</option><option value="5">5 days</option><option value="7">7 days</option>
             </select>
           </div>
-          <button onClick={confirmDetails}>Continue to listing plan</button>
+          <button onClick={confirmDetails}>Continue to ad plan</button>
         </div>
       )}
 
@@ -360,8 +404,8 @@ export default function PostAdPage() {
       {step === "done" && (
         <div className="panel">
           <h3>Published 🎉</h3>
-          <p>Your listing is live.</p>
-          <button onClick={() => router.push(`/listing/${listingId}`)}>View listing</button>
+          <p>Your ad is live.</p>
+          <button onClick={() => router.push(`/listing/${listingId}`)}>View ad</button>
         </div>
       )}
     </div>

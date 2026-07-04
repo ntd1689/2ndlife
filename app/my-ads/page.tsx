@@ -4,6 +4,8 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { CATEGORIES, ARCHIVE_WINDOW_DAYS, MAX_PHOTOS } from "@/lib/data/categories";
 import { PARISHES } from "@/lib/data/parishes";
+import DescriptionEditor from "../components/DescriptionEditor";
+import MarkdownText from "../components/MarkdownText";
 
 type MediaItem = {
   id: string;
@@ -391,7 +393,7 @@ export default function MyAdsPage() {
             </p>
             {listing.status === "removed" && (
               <p className="error" style={{ marginTop: 0 }}>
-                This listing was removed by a moderator and is no longer visible to buyers.
+                This ad was removed by a moderator and is no longer visible to buyers.
               </p>
             )}
 
@@ -403,7 +405,7 @@ export default function MyAdsPage() {
                 </div>
                 <div className="field">
                   <label>Description</label>
-                  <textarea value={description} onChange={(e) => setDescription(e.target.value)} />
+                  <DescriptionEditor value={description} onChange={setDescription} />
                 </div>
                 <div className="field">
                   <label>Asking price (J$, optional)</label>
@@ -527,7 +529,7 @@ export default function MyAdsPage() {
             ) : (
               <>
                 <h3>{listing.title}</h3>
-                <p>{listing.description}</p>
+                <MarkdownText text={listing.description} />
                 <p className="mono">
                   {listing.askingPrice != null ? `Asking J$${listing.askingPrice.toLocaleString()}` : "Open to offers"}
                 </p>

@@ -13,13 +13,13 @@ export async function POST(_req: NextRequest, { params }: { params: Promise<{ id
     return NextResponse.json({ error: "Not found" }, { status: 404 });
   }
   if (listing.status !== "archived" || !listing.archivedAt) {
-    return NextResponse.json({ error: "Only archived listings can be restored" }, { status: 400 });
+    return NextResponse.json({ error: "Only archived ads can be restored" }, { status: 400 });
   }
 
   const msInDay = 86400000;
   const archiveExpiresAt = listing.archivedAt.getTime() + ARCHIVE_WINDOW_DAYS * msInDay;
   if (Date.now() > archiveExpiresAt) {
-    return NextResponse.json({ error: "Archive window ended. This listing can no longer be restored." }, { status: 400 });
+    return NextResponse.json({ error: "Archive window ended. This ad can no longer be restored." }, { status: 400 });
   }
 
   const restored = await withRetry(() =>

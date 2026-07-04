@@ -35,9 +35,9 @@ export async function GET(req: NextRequest) {
 }
 
 const createSchema = z.object({
-  title: z.string().min(3),
-  description: z.string().min(1),
-  instagramUrl: z.string().url().optional().or(z.literal("")),
+  title: z.string().min(3, "Title must be at least 3 characters"),
+  description: z.string().min(1, "Please add a description"),
+  instagramUrl: z.string().url("Instagram / website must be a full URL (https://…)").optional().or(z.literal("")),
   parish: z.string(),
   category: z.string(),
   subcategory: z.string(),
@@ -55,7 +55,7 @@ export async function POST(req: NextRequest) {
   const body = await req.json();
   const parsed = createSchema.safeParse(body);
   if (!parsed.success) {
-    return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 });
+    return NextResponse.json({ error: parsed.error.issues[0]?.message ?? "Invalid ad details" }, { status: 400 });
   }
   const data = parsed.data;
 

@@ -49,8 +49,8 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
 }
 
 const updateSchema = z.object({
-  title: z.string().min(3),
-  description: z.string().min(1),
+  title: z.string().min(3, "Title must be at least 3 characters"),
+  description: z.string().min(1, "Please add a description"),
   askingPrice: z.number().int().positive().nullable().optional(),
   parish: z.string(),
   category: z.string(),
@@ -76,7 +76,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   if (!userId) return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
 
   const parsed = updateSchema.safeParse(await req.json());
-  if (!parsed.success) return NextResponse.json({ error: "Invalid listing update" }, { status: 400 });
+  if (!parsed.success) return NextResponse.json({ error: parsed.error.issues[0]?.message ?? "Invalid ad update" }, { status: 400 });
   const data = parsed.data;
 
   const listing = await withRetry(() =>
@@ -223,10 +223,10 @@ export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ 
   // the owner's self-archive path so they can't route through /restore to
   // undo that. Everything else (active/expired/sold) can still be archived.
   if (listing.status === "removed") {
-    return NextResponse.json({ error: "This listing was removed by a moderator and can't be edited" }, { status: 400 });
+    return NextResponse.json({ error: "This ad was removed by a moderator and can't be edited" }, { status: 400 });
   }
   if (listing.status === "deleted" || listing.status === "archived") {
-    return NextResponse.json({ error: "Listing already archived or deleted" }, { status: 400 });
+    return NextResponse.json({ error: "Ad already archived or deleted" }, { status: 400 });
   }
 
   const archived = await withRetry(() =>

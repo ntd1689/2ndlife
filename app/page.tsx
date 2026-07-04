@@ -56,7 +56,7 @@ export default async function HomePage({
 
       <div className="section-label">
         <span className="tag">Browse</span>
-        <h3>{params.subcategory || params.category || "All listings"}</h3>
+        <h3>{params.subcategory || params.category || "All ads"}</h3>
       </div>
       <div className="grid">
         {rest.map((l) => <ListingCard key={l.id} listing={l} />)}

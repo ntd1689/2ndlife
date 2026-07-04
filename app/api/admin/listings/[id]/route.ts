@@ -13,7 +13,7 @@ export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ 
   );
   if (!listing) return NextResponse.json({ error: "Not found" }, { status: 404 });
   if (listing.status === "deleted") {
-    return NextResponse.json({ error: "Listing already deleted" }, { status: 400 });
+    return NextResponse.json({ error: "Ad already deleted" }, { status: 400 });
   }
 
   await purgeListingMedia(listing.id, listing.media);

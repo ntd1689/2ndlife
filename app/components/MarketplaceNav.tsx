@@ -214,7 +214,7 @@ export default function MarketplaceNav({
               setOpenCategory(null);
             }}
             placeholder="What are you looking for?"
-            aria-label="Search listings"
+            aria-label="Search ads"
             autoComplete="off"
           />
           <select
@@ -343,7 +343,7 @@ export default function MarketplaceNav({
             )}
           </div>
 
-          <Link href="/post" className="mk-cta">+ Post Listing</Link>
+          <Link href="/post" className="mk-cta">+ Post Ad</Link>
         </div>
       </div>
 
@@ -362,7 +362,7 @@ export default function MarketplaceNav({
               <span className="mk-cat-icon" aria-hidden="true">{CATEGORY_ICONS[c.name] ?? "🏷️"}</span>
               <span className="mk-cat-text">
                 <span className="mk-cat-name">{c.name}</span>
-                <span className="mk-cat-count">{fmtCount(c.count)} listing{c.count === 1 ? "" : "s"}</span>
+                <span className="mk-cat-count">{fmtCount(c.count)} ad{c.count === 1 ? "" : "s"}</span>
               </span>
             </Link>
           ))}
@@ -375,7 +375,7 @@ export default function MarketplaceNav({
                 <span className="mk-mega-icon" aria-hidden="true">{CATEGORY_ICONS[activeCategory.name]}</span>
                 <h3>{activeCategory.name}</h3>
                 <p>{CATEGORY_BLURBS[activeCategory.name]}</p>
-                <p className="mk-mega-count">{fmtCount(activeCategory.count)} active listing{activeCategory.count === 1 ? "" : "s"}</p>
+                <p className="mk-mega-count">{fmtCount(activeCategory.count)} active ad{activeCategory.count === 1 ? "" : "s"}</p>
                 <Link href={catHref(activeCategory.name)} className="mk-mega-browse">Browse all →</Link>
               </div>
               <div className="mk-mega-subs">
@@ -394,7 +394,7 @@ export default function MarketplaceNav({
               <div className="mk-mega-spotlight">
                 <p className="mk-panel-label">Fresh in {activeCategory.name.split(" ")[0]}</p>
                 {activeCategory.spotlight.length === 0 && (
-                  <p className="mk-empty">No active listings yet — post the first one.</p>
+                  <p className="mk-empty">No active ads yet — post the first one.</p>
                 )}
                 {activeCategory.spotlight.map((l) => (
                   <Link key={l.id} href={`/listing/${l.id}`} className="mk-spot-card">
@@ -475,7 +475,7 @@ export default function MarketplaceNav({
         >
           <span aria-hidden="true">🔍</span>Search
         </button>
-        <Link href="/post" className="mk-bottom-sell" aria-label="Post a listing"><span aria-hidden="true">➕</span>Sell</Link>
+        <Link href="/post" className="mk-bottom-sell" aria-label="Post an ad"><span aria-hidden="true">➕</span>Sell</Link>
         <Link href="/my-ads" aria-label="My ads"><span aria-hidden="true">📦</span>My Ads</Link>
         {user ? (
           <button aria-label="Account" onClick={() => setDrawerOpen(true)}><span aria-hidden="true">👤</span>Account</button>

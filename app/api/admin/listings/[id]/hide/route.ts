@@ -10,7 +10,7 @@ export async function POST(_req: NextRequest, { params }: { params: Promise<{ id
   const listing = await withRetry(() => prisma.listing.findUnique({ where: { id } }));
   if (!listing) return NextResponse.json({ error: "Not found" }, { status: 404 });
   if (listing.status === "removed" || listing.status === "deleted") {
-    return NextResponse.json({ error: "Listing is already hidden" }, { status: 400 });
+    return NextResponse.json({ error: "Ad is already hidden" }, { status: 400 });
   }
 
   const now = new Date();

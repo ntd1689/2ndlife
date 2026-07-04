@@ -20,7 +20,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     return NextResponse.json({ error: "Not found" }, { status: 404 });
   }
   if (listing.userId === userId) {
-    return NextResponse.json({ error: "You can't report your own listing" }, { status: 400 });
+    return NextResponse.json({ error: "You can't report your own ad" }, { status: 400 });
   }
 
   await prisma.report.create({

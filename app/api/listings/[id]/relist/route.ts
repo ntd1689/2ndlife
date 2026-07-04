@@ -20,7 +20,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     return NextResponse.json({ error: "Not found" }, { status: 404 });
   }
   if (listing.status !== "expired") {
-    return NextResponse.json({ error: "Only expired listings can be re-listed" }, { status: 400 });
+    return NextResponse.json({ error: "Only expired ads can be re-listed" }, { status: 400 });
   }
 
   const order = await createOrder(

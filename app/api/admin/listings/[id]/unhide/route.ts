@@ -10,7 +10,7 @@ export async function POST(_req: NextRequest, { params }: { params: Promise<{ id
   const listing = await withRetry(() => prisma.listing.findUnique({ where: { id } }));
   if (!listing) return NextResponse.json({ error: "Not found" }, { status: 404 });
   if (listing.status !== "removed") {
-    return NextResponse.json({ error: "Only admin-hidden listings can be unhidden" }, { status: 400 });
+    return NextResponse.json({ error: "Only admin-hidden ads can be unhidden" }, { status: 400 });
   }
 
   const updated = await withRetry(() =>

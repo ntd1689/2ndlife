@@ -30,7 +30,7 @@ export async function POST(req: NextRequest) {
     if (parsed.data.listingId) {
       const listing = await prisma.listing.findUnique({ where: { id: parsed.data.listingId } });
       if (!listing || listing.userId !== userId) {
-        return NextResponse.json({ error: "Listing not found" }, { status: 404 });
+        return NextResponse.json({ error: "Ad not found" }, { status: 404 });
       }
 
       const unlinked = payments.filter((p) => !p.listingId);

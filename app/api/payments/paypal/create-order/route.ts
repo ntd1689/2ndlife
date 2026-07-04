@@ -33,7 +33,7 @@ export async function POST(req: NextRequest) {
     if (listingId) {
       const listing = await prisma.listing.findUnique({ where: { id: listingId } });
       if (!listing || listing.userId !== userId) {
-        return NextResponse.json({ error: "Listing not found" }, { status: 404 });
+        return NextResponse.json({ error: "Ad not found" }, { status: 404 });
       }
     }
 

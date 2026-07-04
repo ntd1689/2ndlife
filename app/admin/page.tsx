@@ -133,7 +133,7 @@ export default function AdminPage() {
     try {
       const res = await fetch(`/api/admin/listings/${id}/hide`, { method: "POST" });
       const data = await res.json();
-      if (!res.ok) { setActionError(data.error || "Could not hide listing"); return; }
+      if (!res.ok) { setActionError(data.error || "Could not hide ad"); return; }
       await Promise.all([loadListings(), loadReports()]);
     } finally {
       setActingId(null);
@@ -146,7 +146,7 @@ export default function AdminPage() {
     try {
       const res = await fetch(`/api/admin/listings/${id}/unhide`, { method: "POST" });
       const data = await res.json();
-      if (!res.ok) { setActionError(data.error || "Could not unhide listing"); return; }
+      if (!res.ok) { setActionError(data.error || "Could not unhide ad"); return; }
       await loadListings();
     } finally {
       setActingId(null);
@@ -154,13 +154,13 @@ export default function AdminPage() {
   }
 
   async function deleteListing(id: string) {
-    if (!confirm("Permanently delete this listing and its media? This can't be undone.")) return;
+    if (!confirm("Permanently delete this ad and its media? This can't be undone.")) return;
     setActionError("");
     setActingId(id);
     try {
       const res = await fetch(`/api/admin/listings/${id}`, { method: "DELETE" });
       const data = await res.json();
-      if (!res.ok) { setActionError(data.error || "Could not delete listing"); return; }
+      if (!res.ok) { setActionError(data.error || "Could not delete ad"); return; }
       await loadListings();
     } finally {
       setActingId(null);
@@ -240,10 +240,10 @@ export default function AdminPage() {
           <p style={{ margin: "0 0 10px" }}>{r.reason}</p>
           <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
             <a href={`/listing/${r.listing.id}`} target="_blank" rel="noreferrer">
-              <button className="secondary">View listing</button>
+              <button className="secondary">View ad</button>
             </a>
             <button onClick={() => hideListing(r.listing.id)} disabled={actingId === r.listing.id}>
-              Hide listing
+              Hide ad
             </button>
             <button className="secondary" onClick={() => resolveReport(r.id, "dismissed")} disabled={actingId === r.id}>
               Dismiss report
@@ -252,7 +252,7 @@ export default function AdminPage() {
         </div>
       ))}
 
-      <h2 style={{ marginTop: 30 }}>All listings</h2>
+      <h2 style={{ marginTop: 30 }}>All ads</h2>
       <div className="panel" style={{ maxWidth: "none" }}>
         <div style={{ display: "flex", gap: 10, flexWrap: "wrap", alignItems: "flex-end" }}>
           <div className="field" style={{ flex: 1, minWidth: 180 }}>

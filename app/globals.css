@@ -584,6 +584,23 @@ input, select, textarea {
 
 .detail-title-row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-top: 12px; }
 .description { white-space: pre-wrap; line-height: 1.55; color: var(--ink); }
+.description p { margin: 0 0 10px; }
+.description ul, .description ol { margin: 0 0 10px; padding-left: 22px; }
+.description li { margin: 2px 0; }
+.description a { color: var(--teal); text-decoration: underline; text-underline-offset: 2px; }
+
+.md-toolbar { display: flex; align-items: center; gap: 6px; margin-bottom: 6px; }
+.md-toolbar .md-tabs { margin-left: auto; display: flex; gap: 6px; }
+button.md-btn {
+  background: #f1ece0; color: var(--ink); padding: 4px 10px;
+  font-size: 13px; font-weight: 500; border-radius: 3px;
+}
+button.md-btn:hover { background: #e6e0d2; }
+button.md-btn.active { background: var(--teal); color: #fff; }
+.md-preview {
+  border: 1px solid #e6e0d2; border-radius: 4px; padding: 10px 12px;
+  min-height: 120px; background: #fdfbf6;
+}
 .price-lg { font-size: 20px; color: var(--teal); margin: 14px 0; }
 
 .bidbox { background: #f1f6f4; border-radius: 4px; padding: 14px 16px; margin-bottom: 14px; }

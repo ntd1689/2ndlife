@@ -2,6 +2,7 @@
 import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import CategoryBreadcrumb from "../../components/CategoryBreadcrumb";
+import MarkdownText from "../../components/MarkdownText";
 
 export default function ListingPage() {
   const { id } = useParams<{ id: string }>();
@@ -117,7 +118,7 @@ export default function ListingPage() {
         <h2 style={{ marginTop: 8 }}>{listing.title}</h2>
         <p className="note">{listing.subcategory.name} · {listing.parish.name}</p>
 
-        <p className="description">{listing.description}</p>
+        <MarkdownText text={listing.description} className="description" />
 
         {listing.instagramUrl && (
           <p className="note" style={{ marginTop: 8 }}>
@@ -164,7 +165,7 @@ export default function ListingPage() {
             </>
           ) : (
             <p className="note">
-              {listing.status === "sold" ? "This item has been sold." : "Offers have closed on this listing."}
+              {listing.status === "sold" ? "This item has been sold." : "Offers have closed on this ad."}
             </p>
           )}
         </div>
@@ -184,10 +185,10 @@ export default function ListingPage() {
 
         <div className="detail-footer">
           {reportStatus === "sent" ? (
-            <p className="note">Thanks — this listing has been reported to our team.</p>
+            <p className="note">Thanks — this ad has been reported to our team.</p>
           ) : reportOpen ? (
             <div className="field">
-              <label>Why are you reporting this listing?</label>
+              <label>Why are you reporting this ad?</label>
               <textarea value={reportReason} onChange={(e) => setReportReason(e.target.value)} rows={3} />
               {reportError && <p className="error">{reportError}</p>}
               <div style={{ display: "flex", gap: 10, marginTop: 8 }}>
@@ -200,7 +201,7 @@ export default function ListingPage() {
               </div>
             </div>
           ) : (
-            <button className="ghost" onClick={() => setReportOpen(true)}>Report this listing</button>
+            <button className="ghost" onClick={() => setReportOpen(true)}>Report this ad</button>
           )}
         </div>
       </div>
