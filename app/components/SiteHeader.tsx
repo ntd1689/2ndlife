@@ -1,51 +1,105 @@
-import Link from "next/link";
 import { getSessionUserId } from "@/lib/auth";
 import { prisma, withRetry } from "@/lib/prisma";
 import { getAdminEmails } from "@/lib/env";
+import MarketplaceNav, { NavCategory, NavNotification, NavUser } from "./MarketplaceNav";
 
 export default async function SiteHeader() {
   const userId = await getSessionUserId();
-  const user = userId
-    ? await withRetry(() =>
-        prisma.user.findUnique({
-          where: { id: userId },
-          select: { id: true, email: true },
-        })
-      )
-    : null;
-  const isAdmin = !!user && getAdminEmails().has(user.email.toLowerCase());
 
-  return (
-    <header className="site-header">
-      <div className="hbar">
-        <Link href="/">
-          <img src="/logo.png" alt="2ndLife — Buy. Sell. Bid. Repeat." />
-        </Link>
-        <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
-          <Link href="/post">
-            <button className="secondary">Post an ad — free for 7 days</button>
-          </Link>
-          {user ? (
-            <>
-              <Link href="/my-ads">
-                <button>Manage ads</button>
-              </Link>
-              {isAdmin && (
-                <Link href="/admin">
-                  <button className="secondary">Admin</button>
-                </Link>
-              )}
-              <form action="/api/auth/logout" method="post">
-                <button type="submit" className="secondary">Log out</button>
-              </form>
-            </>
-          ) : (
-            <Link href="/login">
-              <button>Log in</button>
-            </Link>
-          )}
-        </div>
-      </div>
-    </header>
-  );
+  const [userRow, categoryRows, spotlightRows] = await Promise.all([
+    userId
+      ? withRetry(() =>
+          prisma.user.findUnique({ where: { id: userId }, select: { id: true, email: true } })
+        )
+      : Promise.resolve(null),
+    withRetry(() =>
+      prisma.category.findMany({
+        select: {
+          name: true,
+          _count: { select: { listings: { where: { status: "active" } } } },
+          subcategories: {
+            select: {
+              name: true,
+              _count: { select: { listings: { where: { status: "active" } } } },
+            },
+          },
+        },
+      })
+    ),
+    // Pool for the mega menu spotlight cards: featured first, then newest
+    withRetry(() =>
+      prisma.listing.findMany({
+        where: { status: "active" },
+        orderBy: [{ featured: "desc" }, { createdAt: "desc" }],
+        select: {
+          id: true,
+          title: true,
+          askingPrice: true,
+          featured: true,
+          category: { select: { name: true } },
+          media: {
+            where: { type: "photo" },
+            orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }],
+            take: 1,
+            select: { url: true },
+          },
+        },
+        take: 40,
+      })
+    ),
+  ]);
+
+  const spotlightByCategory = new Map<string, { id: string; title: string; askingPrice: number | null; image: string | null }[]>();
+  for (const l of spotlightRows) {
+    const list = spotlightByCategory.get(l.category.name) ?? [];
+    if (list.length < 2) {
+      list.push({ id: l.id, title: l.title, askingPrice: l.askingPrice, image: l.media[0]?.url ?? null });
+      spotlightByCategory.set(l.category.name, list);
+    }
+  }
+
+  const categories: NavCategory[] = categoryRows
+    .map((c) => ({
+      name: c.name,
+      count: c._count.listings,
+      subcategories: c.subcategories
+        .map((s) => ({ name: s.name, count: s._count.listings }))
+        .sort((a, b) => b.count - a.count || a.name.localeCompare(b.name)),
+      spotlight: spotlightByCategory.get(c.name) ?? [],
+    }))
+    // Popularity order, "Other" pinned last
+    .sort((a, b) => {
+      if (a.name === "Other") return 1;
+      if (b.name === "Other") return -1;
+      return b.count - a.count || a.name.localeCompare(b.name);
+    });
+
+  let notifications: NavNotification[] = [];
+  if (userId) {
+    const pendingOffers = await withRetry(() =>
+      prisma.offer.findMany({
+        where: { acceptedAt: null, listing: { userId, status: "active" } },
+        orderBy: { createdAt: "desc" },
+        select: {
+          id: true,
+          amount: true,
+          createdAt: true,
+          listing: { select: { title: true } },
+        },
+        take: 8,
+      })
+    );
+    notifications = pendingOffers.map((o) => ({
+      id: o.id,
+      amount: o.amount,
+      listingTitle: o.listing.title,
+      createdAt: o.createdAt.toISOString(),
+    }));
+  }
+
+  const user: NavUser | null = userRow
+    ? { email: userRow.email, isAdmin: getAdminEmails().has(userRow.email.toLowerCase()) }
+    : null;
+
+  return <MarketplaceNav user={user} categories={categories} notifications={notifications} />;
 }

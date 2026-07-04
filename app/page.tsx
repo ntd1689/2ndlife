@@ -1,7 +1,5 @@
 import { prisma } from "@/lib/prisma";
 import Link from "next/link";
-import SearchBox from "./components/SearchBox";
-import CategorySidebar from "./components/CategorySidebar";
 
 export const dynamic = "force-dynamic";
 
@@ -41,30 +39,28 @@ export default async function HomePage({
         Sell it, rent it, or bid for it — second hand, second chance. Free for the first 7 days.
       </p>
 
-      <SearchBox q={params.q} category={params.category} subcategory={params.subcategory} />
+      {params.q && (
+        <p className="note-light" style={{ marginTop: 10 }}>
+          Showing results for “{params.q}” — <Link href="/" style={{ textDecoration: "underline" }}>clear search</Link>
+        </p>
+      )}
 
-      <div className="browse-layout">
-        <CategorySidebar activeCategory={params.category} activeSubcategory={params.subcategory} />
-
-        <div className="browse-main">
-          {featured.length > 0 && (
-            <>
-              <div className="section-label"><span className="tag">Featured</span><h3>Top of the board</h3></div>
-              <div className="grid">
-                {featured.map((l) => <ListingCard key={l.id} listing={l} />)}
-              </div>
-            </>
-          )}
-
-          <div className="section-label">
-            <span className="tag">Browse</span>
-            <h3>{params.subcategory || params.category || "All listings"}</h3>
-          </div>
+      {featured.length > 0 && (
+        <>
+          <div className="section-label"><span className="tag">Featured</span><h3>Top of the board</h3></div>
           <div className="grid">
-            {rest.map((l) => <ListingCard key={l.id} listing={l} />)}
-            {listings.length === 0 && <p className="note-light">No listings match yet.</p>}
+            {featured.map((l) => <ListingCard key={l.id} listing={l} />)}
           </div>
-        </div>
+        </>
+      )}
+
+      <div className="section-label">
+        <span className="tag">Browse</span>
+        <h3>{params.subcategory || params.category || "All listings"}</h3>
+      </div>
+      <div className="grid">
+        {rest.map((l) => <ListingCard key={l.id} listing={l} />)}
+        {listings.length === 0 && <p className="note-light">No listings match yet.</p>}
       </div>
     </div>
   );

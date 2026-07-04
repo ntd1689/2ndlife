@@ -1,7 +1,6 @@
 "use client";
 import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
-import SearchBox from "../../components/SearchBox";
 import CategoryBreadcrumb from "../../components/CategoryBreadcrumb";
 
 export default function ListingPage() {
@@ -29,7 +28,6 @@ export default function ListingPage() {
   if (!listing) {
     return (
       <div className="wrap" style={{ maxWidth: 720 }}>
-        <SearchBox />
         <p className="note-light">Loading…</p>
       </div>
     );
@@ -79,7 +77,6 @@ export default function ListingPage() {
 
   return (
     <div className="wrap" style={{ maxWidth: 720 }}>
-      <SearchBox />
       <CategoryBreadcrumb category={listing.category.name} subcategory={listing.subcategory.name} />
 
       <div className="panel" style={{ maxWidth: "none" }}>
