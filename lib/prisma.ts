@@ -14,8 +14,9 @@ if (process.env.NODE_ENV !== "production") {
   globalForPrisma.prisma = prisma;
 }
 
-// Neon serverless databases suspend when idle and terminate connections on wake-up (E57P01).
-// This helper retries once after reconnecting so a single cold-start doesn't fail the request.
+// Managed Postgres providers (Supabase's pooler, previously Neon) can drop idle
+// connections between requests. This helper retries once after reconnecting so
+// a single stale connection doesn't fail the request.
 export async function withRetry<T>(fn: () => Promise<T>): Promise<T> {
   try {
     return await fn();

@@ -66,9 +66,14 @@ instead of actually sent — useful for testing the flow with zero email cost.
 
 ## 2. Accounts you need to create
 
-### Database — Neon (recommended) or Supabase
-1. Sign up at neon.tech (or supabase.com).
-2. Create a project, copy the connection string into `DATABASE_URL`.
+### Database — Supabase
+1. Sign up at supabase.com and create a project (pick a region close to
+   your users — `us-east-1` is a good fit for Jamaica).
+2. In the dashboard hit **Connect** → **ORMs** → **Prisma**. It shows two
+   connection strings:
+   - the **transaction pooler** one (port 6543) goes in `DATABASE_URL` —
+     append `?pgbouncer=true&connection_limit=1`
+   - the **session pooler** one (port 5432) goes in `DIRECT_URL`
 3. Run `npx prisma migrate deploy` against it once, then `npm run seed`.
 
 ### File storage — Cloudflare R2
@@ -122,7 +127,7 @@ payment option in the UI.
 1. Push this code to a GitHub repository.
 2. Go to vercel.com → New Project → import that repo.
 3. In Vercel project settings → Environment Variables, paste in everything
-   from your `.env.local` (using your **production** Neon/R2/Resend/PayPal
+   from your `.env.local` (using your **production** Supabase/R2/Resend/PayPal
    values, not sandbox/dev ones where applicable).
 4. Deploy. Vercel will build and give you a `*.vercel.app` URL immediately.
 5. In Vercel project settings → Cron Jobs, confirm the job from `vercel.json`
