@@ -65,7 +65,7 @@ model User {
   createdAt     DateTime   @default(now())
 
   listings      Listing[]
-  bids          Bid[]
+  offers        Offer[]
   payments      Payment[]
   reports       Report[]
 }
@@ -125,10 +125,8 @@ model Listing {
   featured      Boolean       @default(false)
   status        ListingStatus @default(active)
 
-  buyNowPrice   Int           // JMD, whole dollars
-  biddingEnabled Boolean      @default(false)
-  minBid        Int?          // JMD
-  bidEndAt      DateTime?
+  askingPrice   Int?          // JMD, whole dollars — optional; shown as "Asking J$X" when set
+  offerEndAt    DateTime?     // optional deadline after which new offers are rejected
 
   createdAt     DateTime      @default(now())
   expiresAt     DateTime?     // set on create for free-plan listings (createdAt + 7 days)
@@ -136,7 +134,7 @@ model Listing {
   deletedAt     DateTime?     // set when media is permanently removed
 
   media         ListingMedia[]
-  bids          Bid[]
+  offers        Offer[]
   payments      Payment[]
   reports       Report[]
 
@@ -158,14 +156,18 @@ model ListingMedia {
   @@index([listingId, sortOrder])
 }
 
-model Bid {
-  id          String   @id @default(cuid())
+// Price proposals from buyers. The site never processes the item payment —
+// the seller reviews offers and formally accepts one, which marks the listing
+// sold and reveals the seller's contact info to that buyer only.
+model Offer {
+  id          String    @id @default(cuid())
   listingId   String
-  listing     Listing  @relation(fields: [listingId], references: [id])
-  bidderId    String
-  bidder      User     @relation(fields: [bidderId], references: [id])
-  amount      Int      // JMD
-  createdAt   DateTime @default(now())
+  listing     Listing   @relation(fields: [listingId], references: [id])
+  buyerId     String
+  buyer       User      @relation(fields: [buyerId], references: [id])
+  amount      Int       // JMD
+  acceptedAt  DateTime? // set when the seller accepts this offer
+  createdAt   DateTime  @default(now())
 
   @@index([listingId])
 }

@@ -6,9 +6,9 @@ import { MAX_PHOTOS } from "@/lib/data/categories";
 
 export async function GET(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  // Seller email/phone are intentionally excluded here — this route is public
-  // and unauthenticated. Contact info is only ever returned from the
-  // buy-now response, once a signed-in buyer claims the listing.
+  // Seller email/phone are intentionally excluded from the listing payload —
+  // this route is public. Contact info is only revealed to the one buyer
+  // whose offer the seller accepted (see `viewer` below).
   const listing = await withRetry(() =>
     prisma.listing.findUnique({
       where: { id },
@@ -17,7 +17,7 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
         parish: true,
         category: true,
         subcategory: true,
-        bids: { orderBy: { amount: "desc" } },
+        offers: { orderBy: { amount: "desc" }, select: { id: true, amount: true, createdAt: true } },
       },
     })
   );
@@ -25,13 +25,33 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
   if (listing.status === "archived" || listing.status === "deleted" || listing.status === "removed") {
     return NextResponse.json({ error: "Not found" }, { status: 404 });
   }
-  return NextResponse.json({ listing });
+
+  // If the signed-in viewer is the buyer whose offer was accepted, include
+  // the seller's contact info so the two can close the deal off-platform.
+  let viewer: { offerAccepted: boolean; sellerContact: { email: string; phone: string | null } | null } = {
+    offerAccepted: false,
+    sellerContact: null,
+  };
+  const viewerId = await getSessionUserId();
+  if (viewerId) {
+    const acceptedOffer = await withRetry(() =>
+      prisma.offer.findFirst({
+        where: { listingId: id, buyerId: viewerId, acceptedAt: { not: null } },
+        include: { listing: { select: { user: { select: { email: true, phone: true } } } } },
+      })
+    );
+    if (acceptedOffer) {
+      viewer = { offerAccepted: true, sellerContact: acceptedOffer.listing.user };
+    }
+  }
+
+  return NextResponse.json({ listing, viewer });
 }
 
 const updateSchema = z.object({
   title: z.string().min(3),
   description: z.string().min(1),
-  buyNowPrice: z.number().int().positive(),
+  askingPrice: z.number().int().positive().nullable().optional(),
   parish: z.string(),
   category: z.string(),
   subcategory: z.string(),
@@ -132,7 +152,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
         data: {
           title: data.title,
           description: data.description,
-          buyNowPrice: data.buyNowPrice,
+          askingPrice: data.askingPrice ?? null,
           parishId: parish.id,
           categoryId: category.id,
           subcategoryId: subcategory.id,

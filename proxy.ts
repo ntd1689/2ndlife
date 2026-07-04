@@ -47,6 +47,7 @@ function maybeRateLimitApi(req: NextRequest): NextResponse | null {
     { match: /^\/api\/payments\/paypal\/(create-order|capture|webhook)$/, max: 60, windowMs: 5 * 60 * 1000 },
     { match: /^\/api\/listings\/[^/]+\/report$/, max: 10, windowMs: 15 * 60 * 1000 },
     { match: /^\/api\/listings/, max: 240, windowMs: 5 * 60 * 1000 },
+    { match: /^\/api\/offers\//, max: 60, windowMs: 5 * 60 * 1000 },
     { match: /^\/api\/admin\//, max: 300, windowMs: 5 * 60 * 1000 },
   ];
 

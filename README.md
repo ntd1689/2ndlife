@@ -13,7 +13,11 @@ This is the production scaffold: Next.js + PostgreSQL (Prisma) + Resend (email O
   users verify by email, then optionally add a phone number afterward as plain
   contact info (not SMS-verified) so buyers can reach them
 - Listing create/search/filter by parish + category + subcategory
-- Bidding logic with the J$100 increment rule, buy-now, bid-end-date enforcement
+- **Offer system (no on-site item payments)** — every listing takes offers;
+  each offer must top the current highest; sellers set an optional asking
+  price and optional offer deadline, review offers in My Ads, and formally
+  accept one, which marks the ad sold and emails that buyer the seller's
+  contact info. The site never processes the item payment itself.
 - 500MB video cap enforced server-side (not just in the browser)
 - Daily cron job: expires free listings after 7 days, deletes media 30 days after that
 - PayPal order creation + capture (sandbox-ready), with real PayPal Buttons

@@ -8,7 +8,7 @@ type AdminListing = {
   id: string;
   title: string;
   status: string;
-  buyNowPrice: number;
+  askingPrice: number | null;
   createdAt: string;
   user: { email: string };
   media: { url: string }[];
@@ -283,7 +283,7 @@ export default function AdminPage() {
           )}
           <div style={{ flex: 1 }}>
             <p style={{ margin: "0 0 4px" }}>
-              <b>{l.title}</b> · J${l.buyNowPrice.toLocaleString()}
+              <b>{l.title}</b> · {l.askingPrice != null ? `Asking J$${l.askingPrice.toLocaleString()}` : "Open to offers"}
             </p>
             <p className="note" style={{ margin: "0 0 8px" }}>
               {l.user.email} · status: {l.status}

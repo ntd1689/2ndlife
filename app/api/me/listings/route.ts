@@ -18,6 +18,12 @@ export async function GET() {
           parish: true,
           category: true,
           subcategory: true,
+          // Amounts only — buyer contact stays private until the seller
+          // accepts, and even then it's the seller's contact that is shared.
+          offers: {
+            orderBy: { amount: "desc" },
+            select: { id: true, amount: true, createdAt: true, acceptedAt: true },
+          },
         },
         orderBy: { createdAt: "desc" },
       })

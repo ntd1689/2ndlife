@@ -12,11 +12,18 @@ type MediaItem = {
   sortOrder: number;
 };
 
+type Offer = {
+  id: string;
+  amount: number;
+  createdAt: string;
+  acceptedAt: string | null;
+};
+
 type Listing = {
   id: string;
   title: string;
   description: string;
-  buyNowPrice: number;
+  askingPrice: number | null;
   status: "active" | "expired" | "archived" | "deleted" | "sold" | "removed";
   createdAt: string;
   archivedAt: string | null;
@@ -24,6 +31,7 @@ type Listing = {
   category: { name: string };
   subcategory: { name: string };
   media: MediaItem[];
+  offers: Offer[];
 };
 
 type DraftMedia = {
@@ -111,7 +119,7 @@ export default function MyAdsPage() {
     setEditingId(listing.id);
     setTitle(listing.title);
     setDescription(listing.description);
-    setPrice(String(listing.buyNowPrice));
+    setPrice(listing.askingPrice != null ? String(listing.askingPrice) : "");
     setParish(listing.parish.name);
     setCategory(listing.category.name);
     setSubcategory(listing.subcategory.name);
@@ -224,8 +232,12 @@ export default function MyAdsPage() {
     setError("");
     setSaving(true);
     try {
-      if (!title || !description || !price || !parish || !category || !subcategory) {
+      if (!title || !description || !parish || !category || !subcategory) {
         setError("Fill in all required fields.");
+        return;
+      }
+      if (price && (!Number(price) || Number(price) < 1)) {
+        setError("Asking price must be a positive amount, or leave it blank for offers-only.");
         return;
       }
 
@@ -254,7 +266,7 @@ export default function MyAdsPage() {
         body: JSON.stringify({
           title,
           description,
-          buyNowPrice: Number(price),
+          askingPrice: price ? Number(price) : null,
           parish,
           category,
           subcategory,
@@ -323,6 +335,25 @@ export default function MyAdsPage() {
     return Math.max(0, Math.ceil((cutoff - Date.now()) / msInDay));
   }
 
+  async function acceptOffer(offerId: string) {
+    if (!confirm("Accept this offer? The ad will be marked sold and the buyer will be sent your contact info.")) return;
+    setActingListingId(offerId);
+    setError("");
+    try {
+      const res = await fetch(`/api/offers/${offerId}/accept`, { method: "POST" });
+      const data = await parseJsonSafe(res);
+      if (!res.ok) {
+        setError(data.error || "Could not accept offer");
+        return;
+      }
+      await load();
+    } catch {
+      setError("Network issue while accepting this offer.");
+    } finally {
+      setActingListingId(null);
+    }
+  }
+
   return (
     <div className="wrap" style={{ maxWidth: 800 }}>
       <h1>Manage my ads</h1>
@@ -375,8 +406,8 @@ export default function MyAdsPage() {
                   <textarea value={description} onChange={(e) => setDescription(e.target.value)} />
                 </div>
                 <div className="field">
-                  <label>Buy-now price (J$)</label>
-                  <input value={price} onChange={(e) => setPrice(e.target.value)} type="number" />
+                  <label>Asking price (J$, optional)</label>
+                  <input value={price} onChange={(e) => setPrice(e.target.value)} type="number" placeholder="Leave blank to just take offers" />
                 </div>
                 <div className="field">
                   <label>Parish</label>
@@ -497,7 +528,9 @@ export default function MyAdsPage() {
               <>
                 <h3>{listing.title}</h3>
                 <p>{listing.description}</p>
-                <p className="mono">Buy now J${listing.buyNowPrice.toLocaleString()}</p>
+                <p className="mono">
+                  {listing.askingPrice != null ? `Asking J$${listing.askingPrice.toLocaleString()}` : "Open to offers"}
+                </p>
                 <p className="note">
                   {listing.category.name} → {listing.subcategory.name} · {listing.parish.name}
                 </p>
@@ -508,6 +541,37 @@ export default function MyAdsPage() {
                       ? `You can restore this ad for ${restoreDaysLeft} more day${restoreDaysLeft === 1 ? "" : "s"}.`
                       : "Restore window has ended for this archived ad."}
                   </p>
+                )}
+
+                {listing.offers.length > 0 && (
+                  <div className="bidbox">
+                    <p style={{ margin: "0 0 8px" }}><b>Offers ({listing.offers.length})</b></p>
+                    {listing.offers.map((offer) => (
+                      <div key={offer.id} style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 6 }}>
+                        <span className="hi">J${offer.amount.toLocaleString()}</span>
+                        <span className="note">{new Date(offer.createdAt).toLocaleDateString()}</span>
+                        {offer.acceptedAt ? (
+                          <span className="tag">Accepted</span>
+                        ) : listing.status === "active" ? (
+                          <button
+                            onClick={() => acceptOffer(offer.id)}
+                            disabled={actingListingId === offer.id}
+                            style={{ padding: "4px 10px", fontSize: 12 }}
+                          >
+                            {actingListingId === offer.id ? "Accepting…" : "Accept"}
+                          </button>
+                        ) : null}
+                      </div>
+                    ))}
+                    {listing.status === "active" && (
+                      <p className="note" style={{ margin: "6px 0 0" }}>
+                        Accepting an offer marks the ad sold and emails that buyer your contact info.
+                      </p>
+                    )}
+                  </div>
+                )}
+                {listing.offers.length === 0 && listing.status === "active" && (
+                  <p className="note">No offers yet.</p>
                 )}
 
                 <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>

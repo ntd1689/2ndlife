@@ -43,9 +43,7 @@ export default function PostAdPage() {
   const [instagramUrl, setInstagramUrl] = useState("");
   const [photoFiles, setPhotoFiles] = useState<File[]>([]);
   const [videoFile, setVideoFile] = useState<File | null>(null);
-  const [biddingEnabled, setBiddingEnabled] = useState(false);
-  const [minBid, setMinBid] = useState("");
-  const [bidDays, setBidDays] = useState("5");
+  const [offerDays, setOfferDays] = useState("");
 
   const [plan, setPlan] = useState<"free" | "unlimited">("free");
   const [featured, setFeatured] = useState(false);
@@ -137,20 +135,17 @@ export default function PostAdPage() {
 
   function confirmDetails() {
     setError("");
-    if (!title || !price || !parish || !category || !subcategory) {
-      setError("Fill in title, price, parish, category, and subcategory");
+    if (!title || !parish || !category || !subcategory) {
+      setError("Fill in title, parish, category, and subcategory");
+      return;
+    }
+    if (price && (!Number(price) || Number(price) < 1)) {
+      setError("Asking price must be a positive amount, or leave it blank for offers-only");
       return;
     }
     if (photoFiles.length > MAX_PHOTOS) {
       setError(`You can upload up to ${MAX_PHOTOS} photos.`);
       return;
-    }
-    if (biddingEnabled) {
-      const min = Number(minBid);
-      if (!min || min > Number(price)) {
-        setError("Lowest accepted bid must be set and cannot exceed the buy-now price");
-        return;
-      }
     }
     setStep("plan");
   }
@@ -173,9 +168,8 @@ export default function PostAdPage() {
         body: JSON.stringify({
           title, description, instagramUrl: instagramUrl || undefined,
           parish, category, subcategory,
-          buyNowPrice: Number(price),
-          biddingEnabled, minBid: biddingEnabled ? Number(minBid) : undefined,
-          bidDays: biddingEnabled ? Number(bidDays) : undefined,
+          askingPrice: price ? Number(price) : undefined,
+          offerDays: offerDays ? Number(offerDays) : undefined,
           plan: "free", featured: false,
           mediaUrls: media,
         }),
@@ -268,7 +262,13 @@ export default function PostAdPage() {
       {step === "details" && (
         <div className="panel">
           <div className="field"><label>Title</label><input value={title} onChange={(e) => setTitle(e.target.value)} /></div>
-          <div className="field"><label>Buy-now price (J$)</label><input value={price} onChange={(e) => setPrice(e.target.value)} type="number" /></div>
+          <div className="field">
+            <label>Asking price (J$, optional)</label>
+            <input value={price} onChange={(e) => setPrice(e.target.value)} type="number" placeholder="Leave blank to just take offers" />
+            <p className="note" style={{ margin: 0 }}>
+              Buyers make offers either way — payment is arranged directly between you and the buyer, not through the site.
+            </p>
+          </div>
           <div className="field">
             <label>Parish</label>
             <select value={parish} onChange={(e) => setParish(e.target.value)}>
@@ -311,21 +311,13 @@ export default function PostAdPage() {
           </div>
           <div className="field"><label>Video (max 500MB)</label><input type="file" accept="video/*" onChange={(e) => setVideoFile(e.target.files?.[0] || null)} /></div>
 
-          <div className="field" style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
-            <input type="checkbox" checked={biddingEnabled} onChange={(e) => setBiddingEnabled(e.target.checked)} style={{ width: "auto" }} />
-            <label style={{ margin: 0 }}>Open this to bidding</label>
+          <div className="field">
+            <label>Accept offers for</label>
+            <select value={offerDays} onChange={(e) => setOfferDays(e.target.value)}>
+              <option value="">As long as the ad is live</option>
+              <option value="1">1 day</option><option value="3">3 days</option><option value="5">5 days</option><option value="7">7 days</option>
+            </select>
           </div>
-          {biddingEnabled && (
-            <>
-              <div className="field"><label>Lowest accepted bid (J$)</label><input value={minBid} onChange={(e) => setMinBid(e.target.value)} type="number" step={100} /></div>
-              <div className="field">
-                <label>Bidding runs for</label>
-                <select value={bidDays} onChange={(e) => setBidDays(e.target.value)}>
-                  <option value="1">1 day</option><option value="3">3 days</option><option value="5">5 days</option><option value="7">7 days</option>
-                </select>
-              </div>
-            </>
-          )}
           <button onClick={confirmDetails}>Continue to listing plan</button>
         </div>
       )}

@@ -25,7 +25,7 @@ export async function GET(req: NextRequest) {
         parish: true,
         category: true,
         subcategory: true,
-        bids: true,
+        offers: { orderBy: { amount: "desc" }, select: { amount: true } },
       },
       orderBy: [{ featured: "desc" }, { createdAt: "desc" }],
     })
@@ -41,10 +41,8 @@ const createSchema = z.object({
   parish: z.string(),
   category: z.string(),
   subcategory: z.string(),
-  buyNowPrice: z.number().int().positive(),
-  biddingEnabled: z.boolean().default(false),
-  minBid: z.number().int().positive().optional(),
-  bidDays: z.number().int().min(1).max(7).optional(),
+  askingPrice: z.number().int().positive().optional(),
+  offerDays: z.number().int().min(1).max(7).optional(),
   plan: z.enum(["free", "unlimited"]).default("free"),
   featured: z.boolean().default(false),
   mediaUrls: z.array(z.object({ type: z.enum(["photo", "video"]), url: z.string(), sizeBytes: z.number() })),
@@ -66,15 +64,6 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: `You can upload up to ${MAX_PHOTOS} photos.` }, { status: 400 });
   }
 
-  if (data.biddingEnabled) {
-    if (!data.minBid || data.minBid > data.buyNowPrice) {
-      return NextResponse.json(
-        { error: "Lowest accepted bid must be set and cannot exceed the buy-now price" },
-        { status: 400 }
-      );
-    }
-  }
-
   const [parish, category, subcategory] = await withRetry(() =>
     Promise.all([
       prisma.parish.findUnique({ where: { name: data.parish } }),
@@ -88,9 +77,7 @@ export async function POST(req: NextRequest) {
 
   const now = new Date();
   const expiresAt = data.plan === "free" ? new Date(now.getTime() + FREE_LISTING_DAYS * 86400000) : null;
-  const bidEndAt = data.biddingEnabled && data.bidDays
-    ? new Date(now.getTime() + data.bidDays * 86400000)
-    : null;
+  const offerEndAt = data.offerDays ? new Date(now.getTime() + data.offerDays * 86400000) : null;
 
   const listing = await withRetry(() =>
     prisma.listing.create({
@@ -102,10 +89,8 @@ export async function POST(req: NextRequest) {
         parishId: parish.id,
         categoryId: category.id,
         subcategoryId: subcategory.id,
-        buyNowPrice: data.buyNowPrice,
-        biddingEnabled: data.biddingEnabled,
-        minBid: data.minBid,
-        bidEndAt,
+        askingPrice: data.askingPrice ?? null,
+        offerEndAt,
         plan: data.plan,
         featured: data.featured,
         expiresAt,

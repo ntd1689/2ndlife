@@ -49,6 +49,47 @@ export async function sendOtp(email: string) {
   }
 }
 
+function escapeHtml(s: string): string {
+  return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+}
+
+export async function sendOfferAcceptedEmail(
+  to: string,
+  listingTitle: string,
+  amountJmd: number,
+  seller: { email: string; phone: string | null }
+) {
+  const contactLines = [
+    `Seller email: ${escapeHtml(seller.email)}`,
+    seller.phone ? `Seller phone: ${escapeHtml(seller.phone)}` : null,
+  ].filter(Boolean);
+
+  if (!process.env.RESEND_API_KEY) {
+    console.log(`[DEV EMAIL] offer accepted -> ${to}: "${listingTitle}" at J$${amountJmd}. ${contactLines.join(" / ")}`);
+    return;
+  }
+
+  const res = await fetch("https://api.resend.com/emails", {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${process.env.RESEND_API_KEY}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      from: process.env.RESEND_FROM_EMAIL || "2ndLife <onboarding@resend.dev>",
+      to,
+      subject: `Your offer on "${listingTitle}" was accepted`,
+      html: `<p>Good news — the seller accepted your offer of <b>J$${amountJmd.toLocaleString()}</b> for <b>${escapeHtml(listingTitle)}</b>.</p>
+<p>${contactLines.join("<br>")}</p>
+<p>2ndLife doesn't process the payment itself — arrange payment and pickup directly with the seller.</p>`,
+    }),
+  });
+
+  if (!res.ok) {
+    throw new Error("Failed to send offer-accepted email: " + (await res.text()));
+  }
+}
+
 export async function verifyOtp(email: string, code: string): Promise<boolean> {
   const record = await prisma.otpCode.findFirst({
     where: { email, code, consumed: false, expiresAt: { gt: new Date() } },

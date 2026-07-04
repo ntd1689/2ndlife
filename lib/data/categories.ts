@@ -66,7 +66,6 @@ export const CATEGORIES: Record<string, string[]> = {
   Other: ["Miscellaneous"],
 };
 
-export const BID_INCREMENT_JMD = 100;
 export const FREE_LISTING_DAYS = 7;
 export const ARCHIVE_WINDOW_DAYS = 30;
 export const MAX_PHOTOS = 10;

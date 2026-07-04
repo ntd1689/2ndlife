@@ -2,7 +2,6 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { prisma } from "@/lib/prisma";
 import { getSessionUserId } from "@/lib/auth";
-import { BID_INCREMENT_JMD } from "@/lib/data/categories";
 
 const schema = z.object({ amount: z.number().int().positive() });
 
@@ -22,45 +21,40 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   const { amount } = parsed.data;
 
   try {
-    const bid = await prisma.$transaction(
+    const offer = await prisma.$transaction(
       async (tx) => {
         const listing = await tx.listing.findUnique({
           where: { id },
-          include: { bids: { orderBy: { amount: "desc" }, take: 1 } },
+          include: { offers: { orderBy: { amount: "desc" }, take: 1 } },
         });
         if (!listing) throw new ApiError(404, "Not found");
-        if (!listing.biddingEnabled) throw new ApiError(400, "Bidding not enabled on this listing");
+        if (listing.userId === userId) throw new ApiError(400, "You can't make an offer on your own listing");
         if (listing.status !== "active") throw new ApiError(400, "Listing is not active");
-        if (listing.bidEndAt && listing.bidEndAt < new Date()) {
-          throw new ApiError(400, "Bidding has closed on this listing");
+        if (listing.offerEndAt && listing.offerEndAt < new Date()) {
+          throw new ApiError(400, "Offers have closed on this listing");
         }
 
-        const currentHigh = listing.bids[0]?.amount ?? listing.minBid ?? 0;
-        const minNext = currentHigh + BID_INCREMENT_JMD;
-
-        if (amount < minNext) {
-          throw new ApiError(400, `Bid must be at least J$${minNext}`);
-        }
-        if (listing.minBid != null && (amount - listing.minBid) % BID_INCREMENT_JMD !== 0) {
-          throw new ApiError(400, `Bids must move in J$${BID_INCREMENT_JMD} increments`);
+        const currentHigh = listing.offers[0]?.amount ?? 0;
+        if (amount <= currentHigh) {
+          throw new ApiError(400, `Your offer must be more than the current highest (J$${currentHigh.toLocaleString()})`);
         }
 
-        return tx.bid.create({
-          data: { listingId: listing.id, bidderId: userId, amount },
+        return tx.offer.create({
+          data: { listingId: listing.id, buyerId: userId, amount },
         });
       },
       { isolationLevel: "Serializable" }
     );
 
-    return NextResponse.json({ bid });
+    return NextResponse.json({ offer });
   } catch (error) {
     if (error instanceof ApiError) {
       return NextResponse.json({ error: error.message }, { status: error.status });
     }
-    // Serializable transactions can fail under real concurrency (two bids
+    // Serializable transactions can fail under real concurrency (two offers
     // racing for the same listing) — ask the client to retry with fresh data.
     return NextResponse.json(
-      { error: "Someone else may have just bid on this — please refresh and try again" },
+      { error: "Someone else may have just made an offer — please refresh and try again" },
       { status: 409 }
     );
   }

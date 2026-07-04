@@ -7,10 +7,11 @@ import CategoryBreadcrumb from "../../components/CategoryBreadcrumb";
 export default function ListingPage() {
   const { id } = useParams<{ id: string }>();
   const [listing, setListing] = useState<any>(null);
+  const [viewer, setViewer] = useState<{ offerAccepted: boolean; sellerContact: { email: string; phone: string | null } | null }>({ offerAccepted: false, sellerContact: null });
   const [activeMedia, setActiveMedia] = useState(0);
-  const [bidAmount, setBidAmount] = useState("");
+  const [offerAmount, setOfferAmount] = useState("");
+  const [offerSent, setOfferSent] = useState(false);
   const [error, setError] = useState("");
-  const [sellerContact, setSellerContact] = useState<{ email: string; phone: string | null } | null>(null);
   const [reportOpen, setReportOpen] = useState(false);
   const [reportReason, setReportReason] = useState("");
   const [reportStatus, setReportStatus] = useState<"idle" | "sending" | "sent">("idle");
@@ -20,6 +21,7 @@ export default function ListingPage() {
     const res = await fetch(`/api/listings/${id}`);
     const data = await res.json();
     setListing(data.listing);
+    if (data.viewer) setViewer(data.viewer);
   }
 
   useEffect(() => { load(); }, [id]);
@@ -35,28 +37,21 @@ export default function ListingPage() {
 
   const media: { id: string; url: string; type: "photo" | "video" }[] = listing.media;
   const current = media[activeMedia] ?? media[0];
-  const highBid = listing.bids.length ? Math.max(...listing.bids.map((b: any) => b.amount)) : listing.minBid;
-  const bidOpen = listing.biddingEnabled && listing.status === "active" &&
-    (!listing.bidEndAt || new Date(listing.bidEndAt) > new Date());
+  const highOffer = listing.offers.length ? listing.offers[0].amount : null;
+  const offersOpen = listing.status === "active" &&
+    (!listing.offerEndAt || new Date(listing.offerEndAt) > new Date());
 
-  async function placeBid() {
+  async function makeOffer() {
     setError("");
-    const res = await fetch(`/api/listings/${id}/bid`, {
+    const res = await fetch(`/api/listings/${id}/offer`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ amount: Number(bidAmount) }),
+      body: JSON.stringify({ amount: Number(offerAmount) }),
     });
     const data = await res.json();
-    if (!res.ok) { setError(data.error || "Could not place bid"); return; }
-    setBidAmount("");
-    load();
-  }
-
-  async function buyNow() {
-    const res = await fetch(`/api/listings/${id}/buy-now`, { method: "POST" });
-    const data = await res.json();
-    if (!res.ok) { setError(data.error || "Could not complete purchase"); return; }
-    setSellerContact(data.sellerContact);
+    if (!res.ok) { setError(data.error || "Could not send your offer"); return; }
+    setOfferAmount("");
+    setOfferSent(true);
     load();
   }
 
@@ -135,39 +130,56 @@ export default function ListingPage() {
           </p>
         )}
 
-        <p className="mono price-lg">Buy now: J${listing.buyNowPrice.toLocaleString()}</p>
+        <p className="mono price-lg">
+          {listing.askingPrice ? <>Asking: J${listing.askingPrice.toLocaleString()}</> : <>Open to offers</>}
+        </p>
 
-        {listing.biddingEnabled && (
-          <div className="bidbox">
-            <p style={{ margin: "0 0 8px" }}>
-              Highest bid: <span className="hi">J${(highBid ?? 0).toLocaleString()}</span>
-              {listing.bids.length > 0 && (
-                <span className="note"> · {listing.bids.length} bid{listing.bids.length === 1 ? "" : "s"} so far</span>
-              )}
-            </p>
-            {bidOpen ? (
+        <div className="bidbox">
+          <p style={{ margin: "0 0 8px" }}>
+            {highOffer != null ? (
               <>
-                <div className="field">
-                  <label>Your bid (J$100 increments)</label>
-                  <input value={bidAmount} onChange={(e) => setBidAmount(e.target.value)} type="number" step={100} />
-                </div>
-                <button onClick={placeBid}>Place bid</button>
+                Highest offer: <span className="hi">J${highOffer.toLocaleString()}</span>
+                <span className="note"> · {listing.offers.length} offer{listing.offers.length === 1 ? "" : "s"} so far</span>
               </>
             ) : (
-              <p className="note">Bidding has closed.</p>
+              <>No offers yet{offersOpen ? " — be the first" : ""}.</>
             )}
-          </div>
-        )}
+          </p>
+          {offersOpen ? (
+            <>
+              <div className="field">
+                <label>
+                  Your offer (J$){highOffer != null ? ` — must be more than J$${highOffer.toLocaleString()}` : ""}
+                </label>
+                <input value={offerAmount} onChange={(e) => setOfferAmount(e.target.value)} type="number" min={1} />
+              </div>
+              <button onClick={makeOffer}>Make an offer</button>
+              {offerSent && !error && (
+                <p className="note" style={{ marginTop: 8 }}>
+                  Offer sent — the seller will see it and can accept it. You'll get an email if they do.
+                </p>
+              )}
+              {listing.offerEndAt && (
+                <p className="note" style={{ marginTop: 8 }}>
+                  Offers close {new Date(listing.offerEndAt).toLocaleDateString()}.
+                </p>
+              )}
+            </>
+          ) : (
+            <p className="note">
+              {listing.status === "sold" ? "This item has been sold." : "Offers have closed on this listing."}
+            </p>
+          )}
+        </div>
 
         {error && <p className="error">{error}</p>}
 
-        {listing.status === "active" && <button className="secondary" onClick={buyNow}>Buy now</button>}
-
-        {sellerContact && (
+        {viewer.offerAccepted && viewer.sellerContact && (
           <div className="demo-note" style={{ marginTop: 16 }}>
-            <p style={{ margin: "0 0 4px" }}>Seller email: {sellerContact.email}</p>
-            {sellerContact.phone
-              ? <p style={{ margin: "0 0 4px" }}>Seller phone: {sellerContact.phone}</p>
+            <p style={{ margin: "0 0 4px" }}><b>Your offer was accepted!</b></p>
+            <p style={{ margin: "0 0 4px" }}>Seller email: {viewer.sellerContact.email}</p>
+            {viewer.sellerContact.phone
+              ? <p style={{ margin: "0 0 4px" }}>Seller phone: {viewer.sellerContact.phone}</p>
               : <p style={{ margin: "0 0 4px" }} className="note">Seller hasn't added a phone number — reach out by email.</p>}
             <p style={{ margin: 0 }}>2ndLife doesn't process the item payment itself — arrange that directly with the seller.</p>
           </div>

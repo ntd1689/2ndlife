@@ -25,7 +25,7 @@ export default async function HomePage({
       parish: true,
       category: true,
       subcategory: true,
-      bids: true,
+      offers: { orderBy: { amount: "desc" }, take: 1, select: { amount: true } },
     },
     orderBy: [{ featured: "desc" }, { createdAt: "desc" }],
     take: 60,
@@ -71,17 +71,19 @@ export default async function HomePage({
 }
 
 function ListingCard({ listing: l }: { listing: any }) {
-  const highBid = l.bids.length ? Math.max(...l.bids.map((b: any) => b.amount)) : l.minBid;
+  const highOffer = l.offers[0]?.amount ?? null;
   return (
     <Link href={`/listing/${l.id}`} className="card">
       <span className="pin" />
       {l.featured && <span className="ribbon">FEATURED</span>}
       {l.media[0] && <img src={l.media[0].url} alt={l.title} />}
       <h4>{l.title}</h4>
-      <div className="price">Buy now J${l.buyNowPrice.toLocaleString()}</div>
+      <div className="price">
+        {l.askingPrice != null ? <>Asking J${l.askingPrice.toLocaleString()}</> : <>Open to offers</>}
+      </div>
       <div className="meta"><span>{l.subcategory.name} · {l.parish.name}</span></div>
-      {l.biddingEnabled && (
-        <div className="bidbox">Highest bid: <span className="hi">J${(highBid ?? 0).toLocaleString()}</span></div>
+      {highOffer != null && (
+        <div className="bidbox">Highest offer: <span className="hi">J${highOffer.toLocaleString()}</span></div>
       )}
     </Link>
   );
