@@ -57,11 +57,20 @@ enum UserType {
   advertiser
 }
 
+enum PremiumTier {
+  none
+  top
+  vip
+}
+
 model User {
   id            String     @id @default(cuid())
   email         String     @unique
   emailVerified Boolean    @default(false)
   phone         String?    @unique // contact info only — not SMS-verified, entered by the user
+  name          String?    // display name (from Google profile when using SSO)
+  image         String?    // profile picture URL (from Google profile)
+  googleId      String?    @unique // Google account subject id when signed up via SSO
   userType      UserType   @default(advertiser)
   createdAt     DateTime   @default(now())
 
@@ -126,6 +135,12 @@ model Listing {
   featured      Boolean       @default(false)
   status        ListingStatus @default(active)
 
+  // Manual position weight within a category — lower numbers appear first.
+  // Positions 1-10 qualify as VIP, 11-20 as Top (see lib/premium.ts).
+  sortOrder     Int           @default(1000)
+  premiumTier   PremiumTier   @default(none)
+  premiumUntil  DateTime?     // tier expires and reverts to none after this time
+
   askingPrice   Int?          // JMD, whole dollars — optional; shown as "Asking J$X" when set
   offerEndAt    DateTime?     // optional deadline after which new offers are rejected
 
@@ -138,10 +153,35 @@ model Listing {
   offers        Offer[]
   payments      Payment[]
   reports       Report[]
+  views         ListingView[]
 
   @@index([status])
   @@index([parishId])
   @@index([categoryId, subcategoryId])
+  @@index([categoryId, sortOrder])
+}
+
+// One row per unique viewer per listing (viewerKey = user id, or a hash of
+// IP + user agent for anonymous visitors).
+model ListingView {
+  id        String   @id @default(cuid())
+  listingId String
+  listing   Listing  @relation(fields: [listingId], references: [id], onDelete: Cascade)
+  viewerKey String
+  createdAt DateTime @default(now())
+
+  @@unique([listingId, viewerKey])
+}
+
+// Singleton row (id = 1) of admin-tunable marketplace settings.
+model AdminSettings {
+  id            Int      @id @default(1)
+  freeAdDays    Int      @default(30)
+  topAdPriceJmd Int      @default(1500)
+  topAdDays     Int      @default(7)
+  vipAdPriceJmd Int      @default(3000)
+  vipAdDays     Int      @default(7)
+  updatedAt     DateTime @updatedAt
 }
 
 model ListingMedia {

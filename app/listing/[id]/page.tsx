@@ -4,6 +4,12 @@ import { useParams } from "next/navigation";
 import CategoryBreadcrumb from "../../components/CategoryBreadcrumb";
 import MarkdownText from "../../components/MarkdownText";
 
+function isPremium(l: { premiumTier?: string; premiumUntil?: string | null }): "top" | "vip" | null {
+  if (!l.premiumTier || l.premiumTier === "none" || !l.premiumUntil) return null;
+  if (new Date(l.premiumUntil).getTime() < Date.now()) return null;
+  return l.premiumTier as "top" | "vip";
+}
+
 export default function ListingPage() {
   const { id } = useParams<{ id: string }>();
   const [listing, setListing] = useState<any>(null);
@@ -113,10 +119,15 @@ export default function ListingPage() {
 
         <div className="detail-title-row">
           <span className="tag">{listing.category.name}</span>
+          {isPremium(listing) === "vip" && <span className="tag tier-vip">★ VIP AD</span>}
+          {isPremium(listing) === "top" && <span className="tag tier-top">TOP AD</span>}
           {listing.status === "sold" && <span className="note">This item has been sold</span>}
         </div>
         <h2 style={{ marginTop: 8 }}>{listing.title}</h2>
-        <p className="note">{listing.subcategory.name} · {listing.parish.name}</p>
+        <p className="note">
+          {listing.subcategory.name} · {listing.parish.name}
+          {typeof listing.uniqueViews === "number" && <> · 👁 {listing.uniqueViews} unique view{listing.uniqueViews === 1 ? "" : "s"}</>}
+        </p>
 
         <MarkdownText text={listing.description} className="description" />
 

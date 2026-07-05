@@ -1,10 +1,32 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
+import { createHash } from "crypto";
 import { prisma, withRetry } from "@/lib/prisma";
 import { getSessionUserId } from "@/lib/auth";
 import { MAX_PHOTOS } from "@/lib/data/categories";
 
-export async function GET(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+// One ListingView row per unique viewer: logged-in users are keyed by user
+// id, anonymous visitors by a hash of IP + user agent. The owner's own visits
+// are not counted.
+async function recordUniqueView(req: NextRequest, listingId: string, ownerId: string, viewerId: string | null) {
+  if (viewerId === ownerId) return;
+  const viewerKey =
+    viewerId ??
+    "anon:" +
+      createHash("sha256")
+        .update((req.headers.get("x-forwarded-for") || "").split(",")[0].trim() + "|" + (req.headers.get("user-agent") || ""))
+        .digest("hex");
+  try {
+    await prisma.listingView.createMany({
+      data: [{ listingId, viewerKey }],
+      skipDuplicates: true,
+    });
+  } catch {
+    // View tracking is best-effort; never fail the page over it.
+  }
+}
+
+export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   // Seller email/phone are intentionally excluded from the listing payload —
   // this route is public. Contact info is only revealed to the one buyer
@@ -18,6 +40,7 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
         category: true,
         subcategory: true,
         offers: { orderBy: { amount: "desc" }, select: { id: true, amount: true, createdAt: true } },
+        _count: { select: { views: true } },
       },
     })
   );
@@ -33,6 +56,7 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
     sellerContact: null,
   };
   const viewerId = await getSessionUserId();
+  await recordUniqueView(req, id, listing.userId, viewerId);
   if (viewerId) {
     const acceptedOffer = await withRetry(() =>
       prisma.offer.findFirst({
@@ -45,7 +69,10 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
     }
   }
 
-  return NextResponse.json({ listing, viewer });
+  return NextResponse.json({
+    listing: { ...listing, uniqueViews: listing._count.views, _count: undefined },
+    viewer,
+  });
 }
 
 const updateSchema = z.object({

@@ -17,12 +17,19 @@ function securityHeaders(req: NextRequest, res: NextResponse) {
   res.headers.set("Cross-Origin-Opener-Policy", "same-origin");
   res.headers.set("Cross-Origin-Resource-Policy", "same-site");
 
+  // React/Turbopack dev mode needs 'unsafe-eval'; production never uses eval,
+  // so it stays out of the CSP there.
+  const scriptSrc =
+    process.env.NODE_ENV === "development"
+      ? "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://www.paypal.com https://www.sandbox.paypal.com"
+      : "script-src 'self' 'unsafe-inline' https://www.paypal.com https://www.sandbox.paypal.com";
+
   const csp = [
     "default-src 'self'",
     "img-src 'self' https: data: blob:",
     "media-src 'self' https: blob:",
     "style-src 'self' 'unsafe-inline' https:",
-    "script-src 'self' 'unsafe-inline' https://www.paypal.com https://www.sandbox.paypal.com",
+    scriptSrc,
     "connect-src 'self' https:",
     "frame-src 'self' https://www.paypal.com https://www.sandbox.paypal.com",
     "base-uri 'self'",

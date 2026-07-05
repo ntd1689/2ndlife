@@ -1,5 +1,7 @@
 import { prisma } from "@/lib/prisma";
 import Link from "next/link";
+import { getSettings } from "@/lib/settings";
+import { activeTier } from "@/lib/premium";
 
 export const dynamic = "force-dynamic";
 
@@ -9,6 +11,7 @@ export default async function HomePage({
   searchParams: Promise<{ q?: string; parish?: string; category?: string; subcategory?: string }>;
 }) {
   const params = await searchParams;
+  const settings = await getSettings();
 
   const listings = await prisma.listing.findMany({
     where: {
@@ -25,7 +28,7 @@ export default async function HomePage({
       subcategory: true,
       offers: { orderBy: { amount: "desc" }, take: 1, select: { amount: true } },
     },
-    orderBy: [{ featured: "desc" }, { createdAt: "desc" }],
+    orderBy: [{ sortOrder: "asc" }, { featured: "desc" }, { createdAt: "desc" }],
     take: 60,
   });
 
@@ -36,7 +39,7 @@ export default async function HomePage({
     <div className="wrap">
       <h2 style={{ fontSize: 36 }}>Give your items a second life.</h2>
       <p className="tagline">
-        Sell it, rent it, or bid for it — second hand, second chance. Free for the first 7 days.
+        Sell it, rent it, or bid for it — second hand, second chance. Free for the first {settings.freeAdDays} days.
       </p>
 
       {params.q && (
@@ -60,7 +63,7 @@ export default async function HomePage({
       </div>
       <div className="grid">
         {rest.map((l) => <ListingCard key={l.id} listing={l} />)}
-        {listings.length === 0 && <p className="note-light">No listings match yet.</p>}
+        {listings.length === 0 && <p className="note-light">No ads match yet.</p>}
       </div>
     </div>
   );
@@ -68,10 +71,17 @@ export default async function HomePage({
 
 function ListingCard({ listing: l }: { listing: any }) {
   const highOffer = l.offers[0]?.amount ?? null;
+  const tier = activeTier(l);
   return (
     <Link href={`/listing/${l.id}`} className="card">
       <span className="pin" />
-      {l.featured && <span className="ribbon">FEATURED</span>}
+      {tier === "vip" ? (
+        <span className="ribbon vip">★ VIP AD</span>
+      ) : tier === "top" ? (
+        <span className="ribbon top">TOP AD</span>
+      ) : l.featured ? (
+        <span className="ribbon">FEATURED</span>
+      ) : null}
       {l.media[0] && <img src={l.media[0].url} alt={l.title} />}
       <h4>{l.title}</h4>
       <div className="price">

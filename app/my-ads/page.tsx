@@ -34,6 +34,7 @@ type Listing = {
   subcategory: { name: string };
   media: MediaItem[];
   offers: Offer[];
+  uniqueViews?: number;
 };
 
 type DraftMedia = {
@@ -535,6 +536,7 @@ export default function MyAdsPage() {
                 </p>
                 <p className="note">
                   {listing.category.name} → {listing.subcategory.name} · {listing.parish.name}
+                  {typeof listing.uniqueViews === "number" && <> · 👁 {listing.uniqueViews} unique view{listing.uniqueViews === 1 ? "" : "s"}</>}
                 </p>
 
                 {listing.status === "archived" && (

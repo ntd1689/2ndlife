@@ -25,13 +25,21 @@ export async function GET(req: NextRequest) {
         media: { orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }], take: 1 },
         user: { select: { id: true, email: true } },
         reports: { where: { status: "open" }, select: { id: true } },
+        category: { select: { name: true } },
+        _count: { select: { views: true } },
       },
-      orderBy: { createdAt: "desc" },
+      orderBy: [{ sortOrder: "asc" }, { createdAt: "desc" }],
       take: 200,
     })
   );
 
   return NextResponse.json({
-    listings: listings.map((l) => ({ ...l, openReportCount: l.reports.length, reports: undefined })),
+    listings: listings.map((l) => ({
+      ...l,
+      openReportCount: l.reports.length,
+      uniqueViews: l._count.views,
+      reports: undefined,
+      _count: undefined,
+    })),
   });
 }

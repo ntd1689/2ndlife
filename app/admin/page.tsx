@@ -13,7 +13,27 @@ type AdminListing = {
   user: { email: string };
   media: { url: string }[];
   openReportCount: number;
+  category: { name: string };
+  sortOrder: number;
+  premiumTier: "none" | "top" | "vip";
+  premiumUntil: string | null;
+  uniqueViews: number;
 };
+
+type Settings = {
+  freeAdDays: number;
+  topAdPriceJmd: number;
+  topAdDays: number;
+  vipAdPriceJmd: number;
+  vipAdDays: number;
+};
+
+function tierLabel(l: AdminListing): string {
+  if (l.premiumTier === "none" || !l.premiumUntil) return "";
+  const until = new Date(l.premiumUntil);
+  if (until.getTime() < Date.now()) return ` · ${l.premiumTier.toUpperCase()} (expired)`;
+  return ` · ${l.premiumTier === "vip" ? "★ VIP" : "TOP"} until ${until.toLocaleDateString()}`;
+}
 
 type Report = {
   id: string;
@@ -48,6 +68,13 @@ export default function AdminPage() {
   const [actionError, setActionError] = useState("");
   const [actingId, setActingId] = useState<string | null>(null);
 
+  const [settings, setSettings] = useState<Settings | null>(null);
+  const [settingsBusy, setSettingsBusy] = useState(false);
+  const [settingsMsg, setSettingsMsg] = useState("");
+
+  const [sortDrafts, setSortDrafts] = useState<Record<string, string>>({});
+  const [promoDayDrafts, setPromoDayDrafts] = useState<Record<string, string>>({});
+
   async function loadMe() {
     setMeLoading(true);
     try {
@@ -80,7 +107,10 @@ export default function AdminPage() {
       if (reportedOnly) params.set("reported", "true");
       const res = await fetch(`/api/admin/listings?${params.toString()}`);
       const data = await res.json();
-      if (res.ok) setListings(data.listings);
+      if (res.ok) {
+        setListings(data.listings);
+        setSortDrafts(Object.fromEntries(data.listings.map((l: AdminListing) => [l.id, String(l.sortOrder)])));
+      }
     } finally {
       setListingsLoading(false);
     }
@@ -90,8 +120,84 @@ export default function AdminPage() {
     if (me?.isAdmin) {
       loadReports();
       loadListings();
+      loadSettings();
     }
   }, [me?.isAdmin]);
+
+  async function loadSettings() {
+    const res = await fetch("/api/admin/settings");
+    const data = await res.json();
+    if (res.ok) setSettings(data.settings);
+  }
+
+  async function saveSettings() {
+    if (!settings) return;
+    setSettingsMsg("");
+    setSettingsBusy(true);
+    try {
+      const res = await fetch("/api/admin/settings", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(settings),
+      });
+      const data = await res.json();
+      if (!res.ok) { setSettingsMsg(data.error || "Could not save settings"); return; }
+      setSettings(data.settings);
+      setSettingsMsg("Saved ✓");
+    } finally {
+      setSettingsBusy(false);
+    }
+  }
+
+  function setSetting(key: keyof Settings, value: string) {
+    setSettings((prev) => (prev ? { ...prev, [key]: Number(value) || 0 } : prev));
+  }
+
+  async function saveSortOrder(id: string) {
+    const draft = sortDrafts[id];
+    const value = Number(draft);
+    if (!draft || !Number.isInteger(value) || value < 1) {
+      setActionError("Position weight must be a whole number of 1 or more");
+      return;
+    }
+    setActionError("");
+    setActingId(id);
+    try {
+      const res = await fetch(`/api/admin/listings/${id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ sortOrder: value }),
+      });
+      const data = await res.json();
+      if (!res.ok) { setActionError(data.error || "Could not update position"); return; }
+      await loadListings();
+    } finally {
+      setActingId(null);
+    }
+  }
+
+  async function promote(id: string, tier: "none" | "top" | "vip") {
+    const daysDraft = promoDayDrafts[id];
+    const days = daysDraft ? Number(daysDraft) : undefined;
+    if (daysDraft && (!Number.isInteger(days) || (days as number) < 1)) {
+      setActionError("Promotion days must be a whole number of 1 or more");
+      return;
+    }
+    setActionError("");
+    setActingId(id);
+    try {
+      const res = await fetch(`/api/admin/listings/${id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ premiumTier: tier, ...(tier !== "none" && days ? { premiumDays: days } : {}) }),
+      });
+      const data = await res.json();
+      if (!res.ok) { setActionError(data.error || "Could not update promotion"); return; }
+      await loadListings();
+    } finally {
+      setActingId(null);
+    }
+  }
 
   async function sendCode() {
     setLoginError("");
@@ -226,7 +332,42 @@ export default function AdminPage() {
       <h1>Admin</h1>
       {actionError && <p className="error">{actionError}</p>}
 
-      <h2>Open reports</h2>
+      <h2>Marketplace settings</h2>
+      {!settings && <p className="note-light">Loading…</p>}
+      {settings && (
+        <div className="panel" style={{ maxWidth: "none" }}>
+          <div style={{ display: "flex", gap: 14, flexWrap: "wrap", alignItems: "flex-end" }}>
+            <div className="field" style={{ width: 140 }}>
+              <label>Free ad days</label>
+              <input type="number" min={1} value={settings.freeAdDays} onChange={(e) => setSetting("freeAdDays", e.target.value)} />
+            </div>
+            <div className="field" style={{ width: 150 }}>
+              <label>Top Ad price (J$)</label>
+              <input type="number" min={0} value={settings.topAdPriceJmd} onChange={(e) => setSetting("topAdPriceJmd", e.target.value)} />
+            </div>
+            <div className="field" style={{ width: 140 }}>
+              <label>Top Ad days</label>
+              <input type="number" min={1} value={settings.topAdDays} onChange={(e) => setSetting("topAdDays", e.target.value)} />
+            </div>
+            <div className="field" style={{ width: 150 }}>
+              <label>VIP Ad price (J$)</label>
+              <input type="number" min={0} value={settings.vipAdPriceJmd} onChange={(e) => setSetting("vipAdPriceJmd", e.target.value)} />
+            </div>
+            <div className="field" style={{ width: 140 }}>
+              <label>VIP Ad days</label>
+              <input type="number" min={1} value={settings.vipAdDays} onChange={(e) => setSetting("vipAdDays", e.target.value)} />
+            </div>
+            <button disabled={settingsBusy} onClick={saveSettings}>{settingsBusy ? "Saving…" : "Save settings"}</button>
+            {settingsMsg && <span className="note">{settingsMsg}</span>}
+          </div>
+          <p className="note" style={{ margin: "8px 0 0" }}>
+            Position weights: ads with weight 1-10 show as ★ VIP, 11-20 as TOP; anything higher is standard.
+            Durations above apply when an ad enters a band; manual promotions can override the number of days per ad.
+          </p>
+        </div>
+      )}
+
+      <h2 style={{ marginTop: 30 }}>Open reports</h2>
       {reportsLoading && <p className="note-light">Loading…</p>}
       {!reportsLoading && reports.length === 0 && <p className="note">No open reports.</p>}
       {reports.map((r) => (
@@ -286,9 +427,42 @@ export default function AdminPage() {
               <b>{l.title}</b> · {l.askingPrice != null ? `Asking J$${l.askingPrice.toLocaleString()}` : "Open to offers"}
             </p>
             <p className="note" style={{ margin: "0 0 8px" }}>
-              {l.user.email} · status: {l.status}
+              {l.user.email} · {l.category.name} · status: {l.status}{tierLabel(l)} · 👁 {l.uniqueViews} view{l.uniqueViews === 1 ? "" : "s"}
               {l.openReportCount > 0 && <> · {l.openReportCount} open report{l.openReportCount === 1 ? "" : "s"}</>}
             </p>
+            {l.status === "active" && (
+              <div style={{ display: "flex", gap: 10, flexWrap: "wrap", alignItems: "flex-end", marginBottom: 10 }}>
+                <div className="field" style={{ width: 120, marginBottom: 0 }}>
+                  <label>Position weight</label>
+                  <input
+                    type="number"
+                    min={1}
+                    value={sortDrafts[l.id] ?? String(l.sortOrder)}
+                    onChange={(e) => setSortDrafts((prev) => ({ ...prev, [l.id]: e.target.value }))}
+                  />
+                </div>
+                <button className="secondary" onClick={() => saveSortOrder(l.id)} disabled={actingId === l.id}>
+                  Set position
+                </button>
+                <div className="field" style={{ width: 110, marginBottom: 0 }}>
+                  <label>Promo days</label>
+                  <input
+                    type="number"
+                    min={1}
+                    placeholder="default"
+                    value={promoDayDrafts[l.id] ?? ""}
+                    onChange={(e) => setPromoDayDrafts((prev) => ({ ...prev, [l.id]: e.target.value }))}
+                  />
+                </div>
+                <button onClick={() => promote(l.id, "vip")} disabled={actingId === l.id}>Make VIP</button>
+                <button onClick={() => promote(l.id, "top")} disabled={actingId === l.id}>Make Top</button>
+                {l.premiumTier !== "none" && (
+                  <button className="secondary" onClick={() => promote(l.id, "none")} disabled={actingId === l.id}>
+                    Remove promo
+                  </button>
+                )}
+              </div>
+            )}
             <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
               {l.status !== "removed" && l.status !== "deleted" && l.status !== "archived" && (
                 <a href={`/listing/${l.id}`} target="_blank" rel="noreferrer">

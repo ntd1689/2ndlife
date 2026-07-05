@@ -3,43 +3,80 @@
 Give your items a second life in second hand. Buy. Sell. Bid. Repeat.
 
 This is the production scaffold: Next.js + PostgreSQL (Prisma) + Resend (email OTP)
-+ Cloudflare R2 (photo/video storage) + PayPal (payments, Lynk to follow).
++ Cloudflare R2 (photo/video storage) + PayPal (payments, Lynk to follow) +
+Google SSO (OAuth 2.0, optional).
+
+Throughout the UI a posting is called an **"ad"** — the database models and code
+still use the name `Listing`, but everything the user reads says "ad".
 
 ## What's built vs. what's left
 
 **Done and working:**
-- Database schema (users, listings, bids, media, payments, parishes/categories)
-- **Email-first signup with OTP verification via Resend** (no Twilio/SMS cost) —
-  users verify by email, then optionally add a phone number afterward as plain
-  contact info (not SMS-verified) so buyers can reach them
-- Listing create/search/filter by parish + category + subcategory
-- **Offer system (no on-site item payments)** — every listing takes offers;
+- Database schema (users, ads, offers, media, payments, parishes/categories,
+  admin settings, ad views)
+- **Two ways to sign in:**
+  - **Email-first signup with OTP verification via Resend** (no Twilio/SMS
+    cost) — users verify by email, then optionally add a phone number
+    afterward as plain contact info (not SMS-verified) so buyers can reach them
+  - **"Sign in with Google" (OAuth 2.0)** — optional; the buttons only appear
+    on the login and post-ad pages when `GOOGLE_CLIENT_ID`/`GOOGLE_CLIENT_SECRET`
+    are set. First-time Google users get a profile created from their Google
+    name, email, and picture; an existing email account is linked by email;
+    returning users log straight in. See `app/api/auth/google/`.
+- **Post-ad flow skips re-verification when you're already logged in** — it
+  jumps straight to the ad details (or the phone step if you haven't saved a
+  number yet) instead of asking for your email again.
+- Ad create/search/filter by parish + category + subcategory
+- **Markdown descriptions** — the description field has a small formatting
+  toolbar (bold, italic, bullet/numbered lists) with a live preview; ad and
+  My Ads pages render the formatting safely as React elements (no raw HTML).
+  See `app/components/DescriptionEditor.tsx` and `MarkdownText.tsx`.
+- **Offer system (no on-site item payments)** — every ad takes offers;
   each offer must top the current highest; sellers set an optional asking
   price and optional offer deadline, review offers in My Ads, and formally
   accept one, which marks the ad sold and emails that buyer the seller's
   contact info. The site never processes the item payment itself.
+- **Unique view tracking** — one count per unique viewer per ad (logged-in
+  users keyed by user id, anonymous visitors by a hash of IP + user agent; the
+  owner's own visits don't count). Shown on the ad page, My Ads, and admin.
+- **Premium tiers — Top Ads and VIP Ads** — each ad has a `sortOrder` position
+  weight (lower = higher placement). Position weights 1–10 render as **★ VIP**
+  (gold badge), 11–20 as **TOP** (teal badge), on both cards and the ad detail
+  page. Admins set the price and duration for each tier, promote/demote ads
+  manually (with an optional custom day count) or by editing an ad's position
+  weight, and the tier auto-expires back to standard via the daily cron. See
+  `lib/premium.ts`.
+- **Admin-configurable marketplace settings** at `/admin` — free-ad duration
+  (default 30 days), plus Top/VIP price and duration. Stored in a single
+  `AdminSettings` row; read by ad creation, relisting, and display copy. See
+  `lib/settings.ts`.
 - 500MB video cap enforced server-side (not just in the browser)
-- Daily cron job: expires free listings after 7 days, deletes media 30 days after that
+- Daily cron job: expires lapsed premium tiers, expires free ads after their
+  configured window, deletes media 30 days after that
 - PayPal order creation + capture (sandbox-ready), with real PayPal Buttons
   rendered in the browser — `app/components/PayPalCheckoutButtons.tsx` loads
-  the PayPal SDK, the post-ad flow creates the listing first, then shows the
+  the PayPal SDK, the post-ad flow creates the ad first, then shows the
   buttons to upgrade it to unlimited/featured, and capture applies the effect
   once PayPal confirms the payment
 - Lynk adapter stubbed out, ready to fill in once you have merchant credentials
 - Visual design ported from the approved prototype: header with your logo,
-  pinned-card listings, mustard "featured" ribbons, teal/cream palette,
+  pinned-card ads, mustard "featured" ribbons, teal/cream palette,
   Fraunces/Inter/IBM Plex Mono type — see `app/globals.css`
-- **Admin moderation** at `/admin` — buyers can report a listing from the
-  listing detail page; admins (anyone whose verified email is listed in
+- **Admin moderation** at `/admin` — buyers can report an ad from the
+  ad detail page; admins (anyone whose verified email is listed in
   `ADMIN_EMAILS`) see an open-reports queue and can hide, unhide, or
-  permanently delete any listing. A hidden ("removed") listing is distinct
+  permanently delete any ad. A hidden ("removed") ad is distinct
   from an owner's own "archived" one, so the owner can't self-restore
   something a moderator took down. Log in at `/admin` the same way as
   everywhere else — email + one-time code, no separate admin password.
 
 **Left to finish before this is fully production-ready — see "Next steps" at the bottom:**
+- **Seller-facing paid checkout for Top/VIP tiers** — prices and durations are
+  configurable and admins can promote ads manually today, but sellers can't yet
+  buy a promotion through PayPal. The tier machinery is in place to wire this to
+  the existing payment flow.
 - Lynk integration itself (blocked on you getting merchant API access)
-- A few smaller pages still use plain inline styles (listing detail actions) —
+- A few smaller pages still use plain inline styles (ad detail actions) —
   functional, just not as polished as the homepage/cards yet
 - A way for a user to add/change their phone number later from a profile page
   (right now it's only collected once, right after signup)
@@ -52,12 +89,17 @@ This is the production scaffold: Next.js + PostgreSQL (Prisma) + Resend (email O
 cd 2ndlife
 npm install
 cp .env.example .env.local   # then fill in the values, see sections below
-npx prisma migrate dev --name init
+npx prisma db push           # applies the schema to your database
 npm run seed                  # loads parishes + categories
 npm run dev
 ```
 
 Visit `http://localhost:3000`.
+
+This repo uses `prisma db push` (schema-driven) rather than a committed
+migration history — run it again after any change to `prisma/schema.prisma`.
+Never point a Prisma **shadow database** at your real database: the shadow DB
+gets reset, which wipes your data.
 
 While `RESEND_API_KEY` is empty, OTP codes are printed to your terminal
 instead of actually sent — useful for testing the flow with zero email cost.
@@ -74,7 +116,7 @@ instead of actually sent — useful for testing the flow with zero email cost.
    - the **transaction pooler** one (port 6543) goes in `DATABASE_URL` —
      append `?pgbouncer=true&connection_limit=1`
    - the **session pooler** one (port 5432) goes in `DIRECT_URL`
-3. Run `npx prisma migrate deploy` against it once, then `npm run seed`.
+3. Run `npx prisma db push` against it once, then `npm run seed`.
 
 ### File storage — Cloudflare R2
 1. Sign up at cloudflare.com → R2.
@@ -106,6 +148,18 @@ instead of actually sent — useful for testing the flow with zero email cost.
    your JMD fee to USD using `JMD_TO_USD_RATE`. Update that rate periodically;
    it's not a live FX lookup.
 
+### Sign-in with Google — OAuth 2.0 (optional)
+Google SSO is optional; skip this and users just sign in by email OTP.
+1. Go to console.cloud.google.com → **APIs & Services → Credentials** and
+   create an **OAuth 2.0 Client ID** (application type: Web application).
+2. Under **Authorized redirect URIs**, add `<your site origin>/api/auth/google/callback`
+   — e.g. `http://localhost:3000/api/auth/google/callback` for local dev and
+   `https://yourdomain.com.jm/api/auth/google/callback` for production. Add both
+   if you want SSO to work in both places.
+3. Copy the generated client ID and secret into `GOOGLE_CLIENT_ID` and
+   `GOOGLE_CLIENT_SECRET`. The "Sign in with Google" buttons appear
+   automatically once both are set; they hide when either is missing.
+
 ### Payments — Lynk (for later)
 Lynk doesn't have a public self-serve API. Apply for a LynkBiz merchant
 account at lynk.us (or email sales@lynk.us). Once approved, they'll send you
@@ -131,12 +185,13 @@ payment option in the UI.
    values, not sandbox/dev ones where applicable).
 4. Deploy. Vercel will build and give you a `*.vercel.app` URL immediately.
 5. In Vercel project settings → Cron Jobs, confirm the job from `vercel.json`
-   is active (it runs `/api/cron/expire-listings` daily at 6am UTC). Enable
-   "Protect your Cron Jobs" so `CRON_SECRET` is required — set the same value
-   in your environment variables.
+   is active (it runs `/api/cron/expire-listings` daily at 6am UTC — it expires
+   lapsed premium tiers, expires free ads past their window, and purges old
+   media). Enable "Protect your Cron Jobs" so `CRON_SECRET` is required — set
+   the same value in your environment variables.
 6. In Vercel project settings → Domains, add your `.com.jm` domain and follow
    the DNS instructions shown there.
-7. Run `npx prisma migrate deploy` once against your **production** database
+7. Run `npx prisma db push` once against your **production** database
    (from your local machine with `DATABASE_URL` pointed at production, or via
    a one-off Vercel deployment build step) and `npm run seed` to load parishes
    and categories into the live database.
@@ -154,10 +209,16 @@ PayPal payments for listing upgrades.
 1. **Set `ADMIN_EMAILS`** in your production environment variables to your
    own verified email (comma-separate more if you have a small mod team),
    so `/admin` is usable on day one.
-2. **Apply for your Lynk merchant account** so it's ready to implement by the
+2. **Wire seller-facing paid checkout for Top/VIP tiers** — the tiers, prices,
+   durations, and admin promotion controls already exist; the remaining piece
+   is letting a seller pay via PayPal to promote their own ad, reusing the
+   existing order/capture flow in `lib/payments/`.
+3. **Set up Google SSO credentials** (see the account section above) if you
+   want one-click sign-in alongside email OTP.
+4. **Apply for your Lynk merchant account** so it's ready to implement by the
    time everything else is live.
-3. **Polish remaining pages** — the listing detail page's action buttons are
-   functional but still plain; the homepage and listing cards already match
+5. **Polish remaining pages** — the ad detail page's action buttons are
+   functional but still plain; the homepage and ad cards already match
    the approved design.
 
 Let me know which of these you'd like to tackle next and I'll build it out.

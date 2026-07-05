@@ -66,7 +66,7 @@ export const CATEGORIES: Record<string, string[]> = {
   Other: ["Miscellaneous"],
 };
 
-export const FREE_LISTING_DAYS = 7;
+// Free ad duration is admin-configurable — see AdminSettings.freeAdDays (lib/settings.ts).
 export const ARCHIVE_WINDOW_DAYS = 30;
 export const MAX_PHOTOS = 10;
 export const MAX_VIDEO_BYTES = 500 * 1024 * 1024; // 500MB

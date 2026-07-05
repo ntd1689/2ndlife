@@ -1,5 +1,5 @@
 import { Prisma, PrismaClient, Payment } from "@prisma/client";
-import { FREE_LISTING_DAYS } from "@/lib/data/categories";
+import { getSettings } from "@/lib/settings";
 
 type DbClient = PrismaClient | Prisma.TransactionClient;
 
@@ -23,13 +23,14 @@ export async function applyPaymentEffects(prisma: DbClient, payment: Payment): P
   }
 
   if (payment.type === "relist") {
+    const { freeAdDays } = await getSettings();
     await prisma.listing.update({
       where: { id: payment.listingId },
       data: {
         status: "active",
         plan: "free",
         createdAt: new Date(),
-        expiresAt: new Date(Date.now() + FREE_LISTING_DAYS * 86400000),
+        expiresAt: new Date(Date.now() + freeAdDays * 86400000),
         archivedAt: null,
       },
     });

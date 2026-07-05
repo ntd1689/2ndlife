@@ -1,7 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import GoogleSignInButton from "../components/GoogleSignInButton";
 
 type Step = "email" | "code";
 
@@ -12,6 +13,19 @@ export default function LoginPage() {
   const [code, setCode] = useState("");
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
+  const [googleEnabled, setGoogleEnabled] = useState(false);
+
+  useEffect(() => {
+    // Surface errors from a failed Google OAuth redirect.
+    const params = new URLSearchParams(window.location.search);
+    const oauthError = params.get("error");
+    if (oauthError) setError(oauthError);
+
+    fetch("/api/settings")
+      .then((r) => r.json())
+      .then((d) => setGoogleEnabled(!!d.googleSignInEnabled))
+      .catch(() => {});
+  }, []);
 
   async function sendCode() {
     setError("");
@@ -69,6 +83,12 @@ export default function LoginPage() {
       {error && <p className="error">{error}</p>}
       {step === "email" && (
         <div className="panel">
+          {googleEnabled && (
+            <>
+              <GoogleSignInButton next="/my-ads" />
+              <div className="auth-divider">or continue with email</div>
+            </>
+          )}
           <div className="field">
             <label>Email address</label>
             <input value={email} onChange={(e) => setEmail(e.target.value)} type="email" placeholder="you@example.com" />

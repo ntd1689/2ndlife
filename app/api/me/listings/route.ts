@@ -24,12 +24,15 @@ export async function GET() {
             orderBy: { amount: "desc" },
             select: { id: true, amount: true, createdAt: true, acceptedAt: true },
           },
+          _count: { select: { views: true } },
         },
         orderBy: { createdAt: "desc" },
       })
     );
 
-    return NextResponse.json({ listings });
+    return NextResponse.json({
+      listings: listings.map((l) => ({ ...l, uniqueViews: l._count.views, _count: undefined })),
+    });
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : "Unknown error";
     console.error("Failed to load my listings:", message);

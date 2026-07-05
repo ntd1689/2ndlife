@@ -34,6 +34,15 @@ export function getPaypalWebhookId(): string {
   return requireEnv("PAYPAL_WEBHOOK_ID");
 }
 
+// Google SSO is optional: when the env vars are missing the buttons hide and
+// email OTP remains the only login method.
+export function getGoogleOAuth(): { clientId: string; clientSecret: string } | null {
+  const clientId = process.env.GOOGLE_CLIENT_ID;
+  const clientSecret = process.env.GOOGLE_CLIENT_SECRET;
+  if (!clientId?.trim() || !clientSecret?.trim()) return null;
+  return { clientId, clientSecret };
+}
+
 export function getAdminEmails(): Set<string> {
   return new Set(
     (process.env.ADMIN_EMAILS || "")

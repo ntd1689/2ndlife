@@ -3,6 +3,7 @@ import { prisma, withRetry } from "@/lib/prisma";
 import { purgeListingMedia } from "@/lib/listings";
 import { ARCHIVE_WINDOW_DAYS } from "@/lib/data/categories";
 import { getCronSecret } from "@/lib/env";
+import { DEFAULT_SORT_ORDER } from "@/lib/premium";
 
 // Configure this as a Vercel Cron job (see vercel.json) hitting this route
 // once a day. Protect it with CRON_SECRET so only Vercel's scheduler (or you)
@@ -16,7 +17,16 @@ export async function GET(req: NextRequest) {
 
   const now = new Date();
 
-  // 1. Expire free listings whose 7-day window has passed.
+  // 0. Premium tiers whose duration has lapsed lose their badge and return
+  //    to the default position.
+  const premiumExpired = await withRetry(() =>
+    prisma.listing.updateMany({
+      where: { premiumTier: { not: "none" }, premiumUntil: { lt: now } },
+      data: { premiumTier: "none", premiumUntil: null, sortOrder: DEFAULT_SORT_ORDER },
+    })
+  );
+
+  // 1. Expire free listings whose free window has passed.
   const expired = await withRetry(() =>
     prisma.listing.updateMany({
       where: { status: "active", plan: "free", expiresAt: { lt: now } },
@@ -46,5 +56,6 @@ export async function GET(req: NextRequest) {
   return NextResponse.json({
     expiredCount: expired.count,
     deletedCount: toDelete.length,
+    premiumExpiredCount: premiumExpired.count,
   });
 }

@@ -557,6 +557,17 @@ input, select, textarea {
   transform: rotate(4deg); box-shadow: 0 2px 4px rgba(0,0,0,.3); z-index: 1;
 }
 .ribbon.sold { background: var(--rust); color: #fff; }
+.ribbon.top { background: var(--teal); color: #fff; }
+.tag.tier-top { background: var(--teal); color: #fff; }
+.tag.tier-vip {
+  background: linear-gradient(120deg, #b8860b, #e9b949 45%, #b8860b);
+  color: #fff; letter-spacing: .05em;
+}
+.ribbon.vip {
+  background: linear-gradient(120deg, #b8860b, #e9b949 45%, #b8860b);
+  color: #fff; letter-spacing: .06em;
+  box-shadow: 0 1px 6px rgba(184,134,11,.45);
+}
 .card h3, .card h4 { font-size: 15px; margin-top: 10px; }
 .card .price { font-family: 'IBM Plex Mono', monospace; font-size: 15px; color: var(--teal); margin-top: 4px; }
 .card .meta { font-size: 11px; color: #6b6b63; margin-top: 6px; display: flex; justify-content: space-between; }
@@ -597,6 +608,19 @@ button.md-btn {
 }
 button.md-btn:hover { background: #e6e0d2; }
 button.md-btn.active { background: var(--teal); color: #fff; }
+.google-btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: 10px;
+  width: 100%; padding: 10px 16px; border-radius: 4px;
+  background: #fff; color: #3c4043; font-weight: 600; font-size: 14.5px;
+  border: 1px solid #dadce0; text-decoration: none; cursor: pointer;
+}
+.google-btn:hover { background: #f7f8f8; }
+.auth-divider {
+  display: flex; align-items: center; gap: 10px; margin: 14px 0;
+  color: #8a8374; font-size: 13px;
+}
+.auth-divider::before, .auth-divider::after { content: ""; flex: 1; border-top: 1px solid #e6e0d2; }
+
 .md-preview {
   border: 1px solid #e6e0d2; border-radius: 4px; padding: 10px 12px;
   min-height: 120px; background: #fdfbf6;

@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import PayPalCheckoutButtons from "../components/PayPalCheckoutButtons";
 import DescriptionEditor from "../components/DescriptionEditor";
+import GoogleSignInButton from "../components/GoogleSignInButton";
 import { MAX_PHOTOS } from "@/lib/data/categories";
 
 const PARISHES = [
@@ -50,6 +51,16 @@ export default function PostAdPage() {
   const [plan, setPlan] = useState<"free" | "unlimited">("free");
   const [featured, setFeatured] = useState(false);
   const [listingId, setListingId] = useState<string | null>(null);
+  const [freeAdDays, setFreeAdDays] = useState<number | null>(null);
+
+  const [googleEnabled, setGoogleEnabled] = useState(false);
+
+  useEffect(() => {
+    fetch("/api/settings")
+      .then((r) => r.json())
+      .then((d) => { setFreeAdDays(d.freeAdDays); setGoogleEnabled(!!d.googleSignInEnabled); })
+      .catch(() => {});
+  }, []);
 
   // Already-logged-in users skip email verification entirely.
   useEffect(() => {
@@ -265,6 +276,12 @@ export default function PostAdPage() {
 
       {step === "email" && !checkingSession && (
         <div className="panel">
+          {googleEnabled && (
+            <>
+              <GoogleSignInButton next="/post" />
+              <div className="auth-divider">or continue with email</div>
+            </>
+          )}
           <div className="demo-note">We'll email you a one-time code to verify your account — no phone or SMS needed to sign up.</div>
           <div className="field">
             <label>Email address</label>
@@ -369,7 +386,7 @@ export default function PostAdPage() {
       {step === "plan" && (
         <div className="panel">
           <div className={`plan-option ${plan === "free" ? "sel" : ""}`} onClick={() => setPlan("free")}>
-            <b>Free — 7 days</b><div className="note">Standard placement, expires automatically.</div>
+            <b>Free — {freeAdDays ?? 30} days</b><div className="note">Standard placement, expires automatically.</div>
           </div>
           <div className={`plan-option ${plan === "unlimited" ? "sel" : ""}`} onClick={() => setPlan("unlimited")}>
             <b>Unlimited duration</b><div className="note">Stays live until you remove it.</div>

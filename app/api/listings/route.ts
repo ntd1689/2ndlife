@@ -2,7 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { prisma, withRetry } from "@/lib/prisma";
 import { getSessionUserId } from "@/lib/auth";
-import { FREE_LISTING_DAYS, MAX_PHOTOS } from "@/lib/data/categories";
+import { MAX_PHOTOS } from "@/lib/data/categories";
+import { getSettings } from "@/lib/settings";
 
 export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
@@ -27,7 +28,7 @@ export async function GET(req: NextRequest) {
         subcategory: true,
         offers: { orderBy: { amount: "desc" }, select: { amount: true } },
       },
-      orderBy: [{ featured: "desc" }, { createdAt: "desc" }],
+      orderBy: [{ sortOrder: "asc" }, { featured: "desc" }, { createdAt: "desc" }],
     })
   );
 
@@ -76,7 +77,8 @@ export async function POST(req: NextRequest) {
   }
 
   const now = new Date();
-  const expiresAt = data.plan === "free" ? new Date(now.getTime() + FREE_LISTING_DAYS * 86400000) : null;
+  const { freeAdDays } = await getSettings();
+  const expiresAt = data.plan === "free" ? new Date(now.getTime() + freeAdDays * 86400000) : null;
   const offerEndAt = data.offerDays ? new Date(now.getTime() + data.offerDays * 86400000) : null;
 
   const listing = await withRetry(() =>
