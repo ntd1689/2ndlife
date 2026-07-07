@@ -3,7 +3,7 @@ import { z } from "zod";
 import { prisma, withRetry } from "@/lib/prisma";
 import { getSessionAdmin } from "@/lib/admin";
 import { purgeListingMedia } from "@/lib/listings";
-import { syncCategoryTiers, DEFAULT_SORT_ORDER, VIP_POSITIONS, TOP_POSITIONS } from "@/lib/premium";
+import { syncCategoryTiers, findOpenBandSlot, DEFAULT_SORT_ORDER } from "@/lib/premium";
 import { getSettings } from "@/lib/settings";
 
 const patchSchema = z
@@ -43,26 +43,9 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     const settings = await getSettings();
     let newSortOrder = DEFAULT_SORT_ORDER;
     if (premiumTier !== "none") {
-      // Place the ad at the front of the matching band: VIP band is
-      // positions 1-10, Top band is 11-20.
-      const bandStart = premiumTier === "vip" ? 1 : VIP_POSITIONS + 1;
-      const bandEnd = premiumTier === "vip" ? VIP_POSITIONS : TOP_POSITIONS;
-      const taken = await withRetry(() =>
-        prisma.listing.findMany({
-          where: {
-            categoryId: listing.categoryId,
-            status: "active",
-            id: { not: id },
-            sortOrder: { gte: bandStart, lte: bandEnd },
-          },
-          select: { sortOrder: true },
-        })
+      newSortOrder = await withRetry(() =>
+        findOpenBandSlot(prisma, listing.categoryId, premiumTier, id)
       );
-      const used = new Set(taken.map((t) => t.sortOrder));
-      newSortOrder = bandEnd; // band full -> share the last slot
-      for (let slot = bandStart; slot <= bandEnd; slot += 1) {
-        if (!used.has(slot)) { newSortOrder = slot; break; }
-      }
     }
 
     const days =
