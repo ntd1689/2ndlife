@@ -25,27 +25,27 @@ export async function POST(req: NextRequest) {
     }
 
     // Cross-instance guard using DB history to avoid bypassing in-memory limits.
-    const lookback = new Date(Date.now() - 15 * 60 * 1000);
-    const recentCount = await withRetry(() =>
-      prisma.otpCode.count({
+    // One query serves both checks below (15-min volume + 60s cooldown) so we
+    // don't pay two round-trips to the database on the happy path.
+    const now = Date.now();
+    const lookback = new Date(now - 15 * 60 * 1000);
+    const recentCodes = await withRetry(() =>
+      prisma.otpCode.findMany({
         where: { email, createdAt: { gt: lookback } },
+        orderBy: { createdAt: "desc" },
+        select: { createdAt: true },
       })
     );
-    if (recentCount >= 6) {
+
+    if (recentCodes.length >= 6) {
       return NextResponse.json(
         { error: "Too many code requests. Please wait before trying again." },
         { status: 429, headers: { "Retry-After": "900" } }
       );
     }
 
-    const cooldownCutoff = new Date(Date.now() - 60 * 1000);
-    const recent = await withRetry(() =>
-      prisma.otpCode.findFirst({
-        where: { email, createdAt: { gt: cooldownCutoff } },
-        orderBy: { createdAt: "desc" },
-      })
-    );
-    if (recent) {
+    const lastSentAt = recentCodes[0]?.createdAt;
+    if (lastSentAt && lastSentAt.getTime() > now - 60 * 1000) {
       return NextResponse.json(
         { error: "Please wait a minute before requesting another code." },
         { status: 429, headers: { "Retry-After": "60" } }

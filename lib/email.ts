@@ -9,15 +9,19 @@ export async function sendOtp(email: string) {
   const expiresAt = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
 
   try {
-    // Only allow one currently valid OTP per email by consuming older pending codes.
-    await prisma.otpCode.updateMany({
-      where: { email, consumed: false },
-      data: { consumed: true },
-    });
-
-    await prisma.otpCode.create({
-      data: { email, code, expiresAt },
-    });
+    // Only allow one currently valid OTP per email by consuming older pending
+    // codes. Batched in one transaction so both statements share a single
+    // round-trip to the database (the create runs after the update, so the new
+    // code is not itself consumed).
+    await prisma.$transaction([
+      prisma.otpCode.updateMany({
+        where: { email, consumed: false },
+        data: { consumed: true },
+      }),
+      prisma.otpCode.create({
+        data: { email, code, expiresAt },
+      }),
+    ]);
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
     console.error("Database error creating OTP code:", msg);
