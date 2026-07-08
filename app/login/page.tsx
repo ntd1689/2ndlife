@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import GoogleSignInButton from "../components/GoogleSignInButton";
 
@@ -94,6 +95,9 @@ export default function LoginPage() {
             <input value={email} onChange={(e) => setEmail(e.target.value)} type="email" placeholder="you@example.com" />
           </div>
           <button disabled={busy} onClick={sendCode}>{busy ? "Sending…" : "Send login code"}</button>
+          <p className="note" style={{ marginTop: 12 }}>
+            New to 2ndLife? <Link href="/signup" style={{ textDecoration: "underline" }}>Create an account</Link>
+          </p>
         </div>
       )}
       {step === "code" && (
