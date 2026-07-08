@@ -51,22 +51,35 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
 
   // If the signed-in viewer is the buyer whose offer was accepted, include
   // the seller's contact info so the two can close the deal off-platform.
-  let viewer: { offerAccepted: boolean; sellerContact: { email: string; phone: string | null } | null } = {
+  let viewer: {
+    offerAccepted: boolean;
+    sellerContact: { email: string; phone: string | null } | null;
+    isFavorited: boolean;
+  } = {
     offerAccepted: false,
     sellerContact: null,
+    isFavorited: false,
   };
   const viewerId = await getSessionUserId();
   await recordUniqueView(req, id, listing.userId, viewerId);
   if (viewerId) {
-    const acceptedOffer = await withRetry(() =>
-      prisma.offer.findFirst({
-        where: { listingId: id, buyerId: viewerId, acceptedAt: { not: null } },
-        include: { listing: { select: { user: { select: { email: true, phone: true } } } } },
-      })
+    const [acceptedOffer, favorite] = await withRetry(() =>
+      Promise.all([
+        prisma.offer.findFirst({
+          where: { listingId: id, buyerId: viewerId, acceptedAt: { not: null } },
+          include: { listing: { select: { user: { select: { email: true, phone: true } } } } },
+        }),
+        prisma.favorite.findUnique({
+          where: { userId_listingId: { userId: viewerId, listingId: id } },
+          select: { id: true },
+        }),
+      ])
     );
     if (acceptedOffer) {
-      viewer = { offerAccepted: true, sellerContact: acceptedOffer.listing.user };
+      viewer.offerAccepted = true;
+      viewer.sellerContact = acceptedOffer.listing.user;
     }
+    viewer.isFavorited = !!favorite;
   }
 
   return NextResponse.json({

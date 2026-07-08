@@ -2,6 +2,8 @@ import { prisma } from "@/lib/prisma";
 import Link from "next/link";
 import { getSettings } from "@/lib/settings";
 import { activeTier } from "@/lib/premium";
+import { getSessionUserId } from "@/lib/auth";
+import FavoriteButton from "./components/FavoriteButton";
 
 export const dynamic = "force-dynamic";
 
@@ -32,6 +34,17 @@ export default async function HomePage({
     take: 60,
   });
 
+  // Which of these ads has the signed-in viewer favorited?
+  const viewerId = await getSessionUserId();
+  let favoritedIds = new Set<string>();
+  if (viewerId && listings.length > 0) {
+    const favorites = await prisma.favorite.findMany({
+      where: { userId: viewerId, listingId: { in: listings.map((l) => l.id) } },
+      select: { listingId: true },
+    });
+    favoritedIds = new Set(favorites.map((f) => f.listingId));
+  }
+
   const featured = listings.filter((l) => l.featured);
   const rest = listings.filter((l) => !l.featured);
 
@@ -52,7 +65,7 @@ export default async function HomePage({
         <>
           <div className="section-label"><span className="tag">Featured</span><h3>Top of the board</h3></div>
           <div className="grid">
-            {featured.map((l) => <ListingCard key={l.id} listing={l} />)}
+            {featured.map((l) => <ListingCard key={l.id} listing={l} favorited={favoritedIds.has(l.id)} />)}
           </div>
         </>
       )}
@@ -62,35 +75,38 @@ export default async function HomePage({
         <h3>{params.subcategory || params.category || "All ads"}</h3>
       </div>
       <div className="grid">
-        {rest.map((l) => <ListingCard key={l.id} listing={l} />)}
+        {rest.map((l) => <ListingCard key={l.id} listing={l} favorited={favoritedIds.has(l.id)} />)}
         {listings.length === 0 && <p className="note-light">No ads match yet.</p>}
       </div>
     </div>
   );
 }
 
-function ListingCard({ listing: l }: { listing: any }) {
+function ListingCard({ listing: l, favorited }: { listing: any; favorited: boolean }) {
   const highOffer = l.offers[0]?.amount ?? null;
   const tier = activeTier(l);
   return (
-    <Link href={`/listing/${l.id}`} className="card">
-      <span className="pin" />
-      {tier === "vip" ? (
-        <span className="ribbon vip">★ VIP AD</span>
-      ) : tier === "top" ? (
-        <span className="ribbon top">TOP AD</span>
-      ) : l.featured ? (
-        <span className="ribbon">FEATURED</span>
-      ) : null}
-      {l.media[0] && <img src={l.media[0].url} alt={l.title} />}
-      <h4>{l.title}</h4>
-      <div className="price">
-        {l.askingPrice != null ? <>Asking J${l.askingPrice.toLocaleString()}</> : <>Open to offers</>}
-      </div>
-      <div className="meta"><span>{l.subcategory.name} · {l.parish.name}</span></div>
-      {highOffer != null && (
-        <div className="bidbox">Highest offer: <span className="hi">J${highOffer.toLocaleString()}</span></div>
-      )}
-    </Link>
+    <div className="card-wrap">
+      <FavoriteButton listingId={l.id} initialFavorited={favorited} />
+      <Link href={`/listing/${l.id}`} className="card">
+        <span className="pin" />
+        {tier === "vip" ? (
+          <span className="ribbon vip">★ VIP AD</span>
+        ) : tier === "top" ? (
+          <span className="ribbon top">TOP AD</span>
+        ) : l.featured ? (
+          <span className="ribbon">FEATURED</span>
+        ) : null}
+        {l.media[0] && <img src={l.media[0].url} alt={l.title} />}
+        <h4>{l.title}</h4>
+        <div className="price">
+          {l.askingPrice != null ? <>Asking J${l.askingPrice.toLocaleString()}</> : <>Open to offers</>}
+        </div>
+        <div className="meta"><span>{l.subcategory.name} · {l.parish.name}</span></div>
+        {highOffer != null && (
+          <div className="bidbox">Highest offer: <span className="hi">J${highOffer.toLocaleString()}</span></div>
+        )}
+      </Link>
+    </div>
   );
 }
