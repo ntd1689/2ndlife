@@ -328,7 +328,10 @@ export default function MarketplaceNav({
                 {user.email[0].toUpperCase()}
               </button>
             ) : (
-              <Link href="/login" className="mk-login">Log in</Link>
+              <>
+                <Link href="/login" className="mk-login">Log in</Link>
+                <Link href="/signup" className="mk-signup">Sign up</Link>
+              </>
             )}
             {user && accountOpen && (
               <div className="mk-dropdown mk-account" role="menu" aria-label="Account">
@@ -457,6 +460,7 @@ export default function MarketplaceNav({
             ) : (
               <div className="mk-drawer-links">
                 <Link href="/login" onClick={() => setDrawerOpen(false)}>Log in</Link>
+                <Link href="/signup" onClick={() => setDrawerOpen(false)}>Sign up</Link>
               </div>
             )}
           </div>
