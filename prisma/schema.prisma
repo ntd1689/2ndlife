@@ -40,6 +40,8 @@ enum PaymentType {
   unlimited_listing
   featured
   relist
+  top_ad
+  vip_ad
 }
 
 enum PaymentProvider {
@@ -239,6 +241,7 @@ model Payment {
   type            PaymentType
   provider        PaymentProvider
   amountJmd       Int
+  premiumDays     Int?            // for top_ad/vip_ad: duration purchased, snapshotted at order time
   providerRef     String?         // PayPal order id / Lynk transaction id
   status          PaymentStatus   @default(pending)
 

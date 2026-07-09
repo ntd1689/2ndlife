@@ -55,13 +55,16 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
     offerAccepted: boolean;
     sellerContact: { email: string; phone: string | null } | null;
     isFavorited: boolean;
+    isOwner: boolean;
   } = {
     offerAccepted: false,
     sellerContact: null,
     isFavorited: false,
+    isOwner: false,
   };
   const viewerId = await getSessionUserId();
   await recordUniqueView(req, id, listing.userId, viewerId);
+  viewer.isOwner = viewerId === listing.userId;
   if (viewerId) {
     const [acceptedOffer, favorite] = await withRetry(() =>
       Promise.all([

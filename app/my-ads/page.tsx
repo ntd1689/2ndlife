@@ -6,6 +6,7 @@ import { CATEGORIES, ARCHIVE_WINDOW_DAYS, MAX_PHOTOS } from "@/lib/data/categori
 import { PARISHES } from "@/lib/data/parishes";
 import DescriptionEditor from "../components/DescriptionEditor";
 import MarkdownText from "../components/MarkdownText";
+import PromoteDialog from "../components/PromoteDialog";
 
 type MediaItem = {
   id: string;
@@ -35,6 +36,8 @@ type Listing = {
   media: MediaItem[];
   offers: Offer[];
   uniqueViews?: number;
+  premiumTier: "none" | "top" | "vip";
+  premiumUntil: string | null;
 };
 
 type DraftMedia = {
@@ -54,6 +57,7 @@ export default function MyAdsPage() {
   const [error, setError] = useState("");
   const [editingId, setEditingId] = useState<string | null>(null);
   const [archiveConfirmListing, setArchiveConfirmListing] = useState<Listing | null>(null);
+  const [promoteListing, setPromoteListing] = useState<Listing | null>(null);
 
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
@@ -68,6 +72,13 @@ export default function MyAdsPage() {
   const draftMediaRef = useRef<DraftMedia[]>([]);
 
   const subcategories = useMemo(() => CATEGORIES[category] ?? [], [category]);
+
+  // The tier to show right now, accounting for expiry (mirrors lib/premium.ts).
+  function activePremium(listing: Listing): "top" | "vip" | null {
+    if (listing.premiumTier === "none" || !listing.premiumUntil) return null;
+    if (new Date(listing.premiumUntil).getTime() < Date.now()) return null;
+    return listing.premiumTier;
+  }
 
   async function parseJsonSafe(res: Response): Promise<any> {
     try {
@@ -529,7 +540,17 @@ export default function MyAdsPage() {
               </>
             ) : (
               <>
-                <h3>{listing.title}</h3>
+                <h3>
+                  {listing.title}
+                  {activePremium(listing) === "vip" && <span className="tag tier-vip" style={{ marginLeft: 8 }}>★ VIP</span>}
+                  {activePremium(listing) === "top" && <span className="tag tier-top" style={{ marginLeft: 8 }}>TOP</span>}
+                </h3>
+                {activePremium(listing) && listing.premiumUntil && (
+                  <p className="note" style={{ margin: "0 0 6px" }}>
+                    {activePremium(listing) === "vip" ? "VIP" : "Top"} placement until{" "}
+                    {new Date(listing.premiumUntil).toLocaleDateString()}.
+                  </p>
+                )}
                 <MarkdownText text={listing.description} />
                 <p className="mono">
                   {listing.askingPrice != null ? `Asking J$${listing.askingPrice.toLocaleString()}` : "Open to offers"}
@@ -591,6 +612,11 @@ export default function MyAdsPage() {
                       {listing.status === "archived" ? "Archived" : "Delete (archive 30 days)"}
                     </button>
                   )}
+                  {listing.status === "active" && (
+                    <button onClick={() => setPromoteListing(listing)}>
+                      {activePremium(listing) ? "Renew / upgrade" : "Promote (Top / VIP)"}
+                    </button>
+                  )}
                   {listing.status !== "archived" && listing.status !== "removed" && (
                     <Link href={`/listing/${listing.id}`}>
                       <button>View</button>
@@ -607,6 +633,15 @@ export default function MyAdsPage() {
           </div>
         );
       })}
+
+      {promoteListing && (
+        <PromoteDialog
+          listingId={promoteListing.id}
+          title={promoteListing.title}
+          onClose={() => setPromoteListing(null)}
+          onDone={() => { setPromoteListing(null); load(); }}
+        />
+      )}
 
       {archiveConfirmListing && (
         <div

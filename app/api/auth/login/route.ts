@@ -35,15 +35,14 @@ export async function POST(req: NextRequest) {
   const user = await withRetry(() =>
     prisma.user.findUnique({
       where: { email },
-      select: {
-        id: true,
-        userType: true,
-        _count: { select: { listings: true } },
-      },
+      select: { id: true, userType: true },
     })
   );
-  if (!user || user.userType !== "advertiser" || user._count.listings < 1) {
-    return NextResponse.json({ error: "No advertiser account found for this email" }, { status: 403 });
+  if (!user || user.userType !== "advertiser") {
+    return NextResponse.json(
+      { error: "No account found for this email. Please sign up first." },
+      { status: 403 }
+    );
   }
 
   await createSession(user.id);
