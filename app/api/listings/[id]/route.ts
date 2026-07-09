@@ -54,26 +54,35 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
   let viewer: {
     offerAccepted: boolean;
     sellerContact: { email: string; phone: string | null } | null;
+    isFavorited: boolean;
     isOwner: boolean;
   } = {
     offerAccepted: false,
     sellerContact: null,
+    isFavorited: false,
     isOwner: false,
   };
   const viewerId = await getSessionUserId();
   await recordUniqueView(req, id, listing.userId, viewerId);
   viewer.isOwner = viewerId === listing.userId;
   if (viewerId) {
-    const acceptedOffer = await withRetry(() =>
-      prisma.offer.findFirst({
-        where: { listingId: id, buyerId: viewerId, acceptedAt: { not: null } },
-        include: { listing: { select: { user: { select: { email: true, phone: true } } } } },
-      })
+    const [acceptedOffer, favorite] = await withRetry(() =>
+      Promise.all([
+        prisma.offer.findFirst({
+          where: { listingId: id, buyerId: viewerId, acceptedAt: { not: null } },
+          include: { listing: { select: { user: { select: { email: true, phone: true } } } } },
+        }),
+        prisma.favorite.findUnique({
+          where: { userId_listingId: { userId: viewerId, listingId: id } },
+          select: { id: true },
+        }),
+      ])
     );
     if (acceptedOffer) {
       viewer.offerAccepted = true;
       viewer.sellerContact = acceptedOffer.listing.user;
     }
+    viewer.isFavorited = !!favorite;
   }
 
   return NextResponse.json({

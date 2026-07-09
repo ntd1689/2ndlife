@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import CategoryBreadcrumb from "../../components/CategoryBreadcrumb";
 import MarkdownText from "../../components/MarkdownText";
+import FavoriteButton from "../../components/FavoriteButton";
 
 function isPremium(l: { premiumTier?: string; premiumUntil?: string | null }): "top" | "vip" | null {
   if (!l.premiumTier || l.premiumTier === "none" || !l.premiumUntil) return null;
@@ -13,7 +14,7 @@ function isPremium(l: { premiumTier?: string; premiumUntil?: string | null }): "
 export default function ListingPage() {
   const { id } = useParams<{ id: string }>();
   const [listing, setListing] = useState<any>(null);
-  const [viewer, setViewer] = useState<{ offerAccepted: boolean; sellerContact: { email: string; phone: string | null } | null; isOwner: boolean }>({ offerAccepted: false, sellerContact: null, isOwner: false });
+  const [viewer, setViewer] = useState<{ offerAccepted: boolean; sellerContact: { email: string; phone: string | null } | null; isFavorited: boolean; isOwner: boolean }>({ offerAccepted: false, sellerContact: null, isFavorited: false, isOwner: false });
   const [activeMedia, setActiveMedia] = useState(0);
   const [offerAmount, setOfferAmount] = useState("");
   const [offerSent, setOfferSent] = useState(false);
@@ -122,6 +123,9 @@ export default function ListingPage() {
           {isPremium(listing) === "vip" && <span className="tag tier-vip">★ VIP AD</span>}
           {isPremium(listing) === "top" && <span className="tag tier-top">TOP AD</span>}
           {listing.status === "sold" && <span className="note">This item has been sold</span>}
+          <span style={{ marginLeft: "auto" }}>
+            <FavoriteButton listingId={listing.id} initialFavorited={viewer.isFavorited} variant="inline" />
+          </span>
         </div>
         <h2 style={{ marginTop: 8 }}>{listing.title}</h2>
         <p className="note">
