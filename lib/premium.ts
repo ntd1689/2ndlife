@@ -1,5 +1,8 @@
+import { Prisma, PrismaClient } from "@prisma/client";
 import { prisma, withRetry } from "@/lib/prisma";
 import { getSettings } from "@/lib/settings";
+
+type DbClient = PrismaClient | Prisma.TransactionClient;
 
 // Premium tier rules:
 // - Listings are ordered by sortOrder ascending within a category, so the
@@ -14,6 +17,63 @@ import { getSettings } from "@/lib/settings";
 export const VIP_POSITIONS = 10;
 export const TOP_POSITIONS = 20;
 export const DEFAULT_SORT_ORDER = 1000;
+
+// The position-slot range [start, end] that qualifies for a tier.
+export function bandRange(tier: "top" | "vip"): [number, number] {
+  return tier === "vip" ? [1, VIP_POSITIONS] : [VIP_POSITIONS + 1, TOP_POSITIONS];
+}
+
+// Finds an open position slot in a tier's band for `categoryId`, ignoring
+// `excludeId` (the ad being placed). Returns the lowest free slot, or the last
+// slot in the band when it's full (ties are broken by featured/recency on read).
+export async function findOpenBandSlot(
+  db: DbClient,
+  categoryId: string,
+  tier: "top" | "vip",
+  excludeId: string
+): Promise<number> {
+  const [bandStart, bandEnd] = bandRange(tier);
+  const taken = await db.listing.findMany({
+    where: {
+      categoryId,
+      status: "active",
+      id: { not: excludeId },
+      sortOrder: { gte: bandStart, lte: bandEnd },
+    },
+    select: { sortOrder: true },
+  });
+  const used = new Set(taken.map((t) => t.sortOrder));
+  for (let slot = bandStart; slot <= bandEnd; slot += 1) {
+    if (!used.has(slot)) return slot;
+  }
+  return bandEnd; // band full -> share the last slot
+}
+
+// Applies a paid promotion to an ad: places it in the tier's band and sets the
+// premium expiry. Buying the same tier again while it's still active extends
+// the existing expiry (and keeps the current slot); otherwise the clock starts
+// now. Runs on whatever db client is passed (e.g. a capture transaction).
+export async function applyPremiumPurchase(
+  db: DbClient,
+  listing: { id: string; categoryId: string; sortOrder: number } & TierFields,
+  tier: "top" | "vip",
+  days: number
+): Promise<void> {
+  const [bandStart, bandEnd] = bandRange(tier);
+  const alreadyInBand = listing.sortOrder >= bandStart && listing.sortOrder <= bandEnd;
+  const sortOrder = alreadyInBand
+    ? listing.sortOrder
+    : await findOpenBandSlot(db, listing.categoryId, tier, listing.id);
+
+  const stillActive = activeTier(listing) === tier && listing.premiumUntil;
+  const base = stillActive ? new Date(listing.premiumUntil as Date | string).getTime() : Date.now();
+  const premiumUntil = new Date(base + days * 86400000);
+
+  await db.listing.update({
+    where: { id: listing.id },
+    data: { sortOrder, premiumTier: tier, premiumUntil },
+  });
+}
 
 type TierFields = { premiumTier: "none" | "top" | "vip"; premiumUntil: Date | string | null };
 
