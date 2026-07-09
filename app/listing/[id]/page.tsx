@@ -13,7 +13,7 @@ function isPremium(l: { premiumTier?: string; premiumUntil?: string | null }): "
 export default function ListingPage() {
   const { id } = useParams<{ id: string }>();
   const [listing, setListing] = useState<any>(null);
-  const [viewer, setViewer] = useState<{ offerAccepted: boolean; sellerContact: { email: string; phone: string | null } | null }>({ offerAccepted: false, sellerContact: null });
+  const [viewer, setViewer] = useState<{ offerAccepted: boolean; sellerContact: { email: string; phone: string | null } | null; isOwner: boolean }>({ offerAccepted: false, sellerContact: null, isOwner: false });
   const [activeMedia, setActiveMedia] = useState(0);
   const [offerAmount, setOfferAmount] = useState("");
   const [offerSent, setOfferSent] = useState(false);
@@ -151,10 +151,12 @@ export default function ListingPage() {
                 <span className="note"> · {listing.offers.length} offer{listing.offers.length === 1 ? "" : "s"} so far</span>
               </>
             ) : (
-              <>No offers yet{offersOpen ? " — be the first" : ""}.</>
+              <>No offers yet{offersOpen && !viewer.isOwner ? " — be the first" : ""}.</>
             )}
           </p>
-          {offersOpen ? (
+          {viewer.isOwner ? (
+            <p className="note">This is your ad — you can review and accept offers from My Ads.</p>
+          ) : offersOpen ? (
             <>
               <div className="field">
                 <label>
@@ -195,7 +197,7 @@ export default function ListingPage() {
         )}
 
         <div className="detail-footer">
-          {reportStatus === "sent" ? (
+          {viewer.isOwner ? null : reportStatus === "sent" ? (
             <p className="note">Thanks — this ad has been reported to our team.</p>
           ) : reportOpen ? (
             <div className="field">
