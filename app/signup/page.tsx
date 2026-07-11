@@ -165,7 +165,7 @@ export default function SignupPage() {
             <label>Phone number (optional, recommended)</label>
             <input value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="+1 876 555 0100" />
           </div>
-          <div style={{ display: "flex", gap: 10 }}>
+          <div className="btn-row">
             <button disabled={busy} onClick={() => finish(false)}>{busy ? "Saving…" : "Save & finish"}</button>
             <button className="secondary" disabled={busy} onClick={() => finish(true)}>Skip for now</button>
           </div>

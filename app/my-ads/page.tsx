@@ -529,7 +529,7 @@ export default function MyAdsPage() {
                   />
                 </div>
 
-                <div style={{ display: "flex", gap: 10 }}>
+                <div className="btn-row">
                   <button onClick={saveEdit} disabled={saving}>
                     {saving ? "Saving…" : "Save changes"}
                   </button>
@@ -599,7 +599,7 @@ export default function MyAdsPage() {
                   <p className="note">No offers yet.</p>
                 )}
 
-                <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+                <div className="btn-row">
                   <button onClick={() => startEdit(listing)} disabled={listing.status !== "active"}>
                     Edit
                   </button>
@@ -664,7 +664,7 @@ export default function MyAdsPage() {
               <b>{archiveConfirmListing.title}</b> will be hidden immediately, then permanently removed after{" "}
               {ARCHIVE_WINDOW_DAYS} days.
             </p>
-            <div style={{ display: "flex", gap: 10 }}>
+            <div className="btn-row">
               <button className="secondary" onClick={() => setArchiveConfirmListing(null)}>
                 Cancel
               </button>
