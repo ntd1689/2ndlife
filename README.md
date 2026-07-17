@@ -70,16 +70,25 @@ still use the name `Listing`, but everything the user reads says "ad".
   something a moderator took down. Log in at `/admin` the same way as
   everywhere else — email + one-time code, no separate admin password.
 
+- **Seller-facing paid checkout for Top/VIP tiers** — from My Ads, a seller can
+  promote (or renew) any active ad to Top or VIP via PayPal at the
+  admin-configured price; capture/webhook place the ad in the tier's position
+  band and extend on renewal. See `app/api/listings/[id]/promote/` and
+  `app/components/PromoteDialog.tsx`.
+- **Signup page** at `/signup` (name → email OTP → optional phone) and a
+  login page that accepts any existing account and points unknown emails to
+  sign up.
+- **Favorites** — heart button on cards and ad pages, saved list at
+  `/favorites`.
+- **Account settings** at `/profile` — edit display name and phone after
+  signup.
+- **About Us** page at `/about`, linked from the footer.
+
 **Left to finish before this is fully production-ready — see "Next steps" at the bottom:**
-- **Seller-facing paid checkout for Top/VIP tiers** — prices and durations are
-  configurable and admins can promote ads manually today, but sellers can't yet
-  buy a promotion through PayPal. The tier machinery is in place to wire this to
-  the existing payment flow.
 - Lynk integration itself (blocked on you getting merchant API access)
-- A few smaller pages still use plain inline styles (ad detail actions) —
-  functional, just not as polished as the homepage/cards yet
-- A way for a user to add/change their phone number later from a profile page
-  (right now it's only collected once, right after signup)
+- A full end-to-end PayPal test (order → approve → capture) — the flow is
+  built but has only run against placeholder sandbox credentials
+- No automated tests yet — everything has been verified manually in-browser
 
 ---
 
@@ -209,16 +218,14 @@ PayPal payments for listing upgrades.
 1. **Set `ADMIN_EMAILS`** in your production environment variables to your
    own verified email (comma-separate more if you have a small mod team),
    so `/admin` is usable on day one.
-2. **Wire seller-facing paid checkout for Top/VIP tiers** — the tiers, prices,
-   durations, and admin promotion controls already exist; the remaining piece
-   is letting a seller pay via PayPal to promote their own ad, reusing the
-   existing order/capture flow in `lib/payments/`.
+2. **Run a real PayPal sandbox transaction end-to-end** (post an ad, buy a
+   Top/VIP promotion, confirm the webhook applies it) before switching
+   `PAYPAL_ENV` to `live`.
 3. **Set up Google SSO credentials** (see the account section above) if you
    want one-click sign-in alongside email OTP.
 4. **Apply for your Lynk merchant account** so it's ready to implement by the
    time everything else is live.
-5. **Polish remaining pages** — the ad detail page's action buttons are
-   functional but still plain; the homepage and ad cards already match
-   the approved design.
+5. **Add automated tests** around the offer, payment, and premium-tier logic —
+   the highest-value place to start a test suite.
 
 Let me know which of these you'd like to tackle next and I'll build it out.
