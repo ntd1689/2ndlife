@@ -7,3 +7,6 @@ node_modules
 *.swp
 tsconfig.tsbuildinfo
 .claude/settings.local.json
+.vercel
+.env*
+!.env.example
