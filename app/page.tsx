@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import Link from "next/link";
+import Image from "next/image";
 import { getSettings } from "@/lib/settings";
 import { activeTier } from "@/lib/premium";
 import { getSessionUserId } from "@/lib/auth";
@@ -85,6 +86,9 @@ export default async function HomePage({
 function ListingCard({ listing: l, favorited }: { listing: any; favorited: boolean }) {
   const highOffer = l.offers[0]?.amount ?? null;
   const tier = activeTier(l);
+  // Thumbnails must be photos — videos can't go through the image optimizer.
+  const photo = l.media.find((m: any) => m.type === "photo");
+  const video = photo ? null : l.media.find((m: any) => m.type === "video");
   return (
     <div className="card-wrap">
       <FavoriteButton listingId={l.id} initialFavorited={favorited} />
@@ -97,7 +101,16 @@ function ListingCard({ listing: l, favorited }: { listing: any; favorited: boole
         ) : l.featured ? (
           <span className="ribbon">FEATURED</span>
         ) : null}
-        {l.media[0] && <img src={l.media[0].url} alt={l.title} />}
+        {photo && (
+          <Image
+            src={photo.url}
+            alt={l.title}
+            width={440}
+            height={260}
+            sizes="(max-width: 640px) 90vw, 220px"
+          />
+        )}
+        {video && <video src={video.url} muted preload="metadata" />}
         <h4>{l.title}</h4>
         <div className="price">
           {l.askingPrice != null ? <>Asking J${l.askingPrice.toLocaleString()}</> : <>Open to offers</>}

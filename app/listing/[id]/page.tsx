@@ -1,5 +1,6 @@
 "use client";
 import { useEffect, useState } from "react";
+import Image from "next/image";
 import { useParams } from "next/navigation";
 import CategoryBreadcrumb from "../../components/CategoryBreadcrumb";
 import MarkdownText from "../../components/MarkdownText";
@@ -95,7 +96,15 @@ export default function ListingPage() {
             {current.type === "video" ? (
               <video src={current.url} className="main-media" controls preload="metadata" />
             ) : (
-              <img src={current.url} alt={listing.title} className="main-media" />
+              <Image
+                src={current.url}
+                alt={listing.title}
+                className="main-media"
+                width={1440}
+                height={960}
+                sizes="(max-width: 768px) 100vw, 720px"
+                priority
+              />
             )}
             {media.length > 1 && (
               <div className="thumbs">
@@ -109,7 +118,7 @@ export default function ListingPage() {
                     {m.type === "video" ? (
                       <video src={m.url} muted preload="metadata" />
                     ) : (
-                      <img src={m.url} alt="" />
+                      <Image src={m.url} alt="" width={120} height={120} sizes="60px" />
                     )}
                   </button>
                 ))}

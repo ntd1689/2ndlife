@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import Image from "next/image";
 import FavoriteButton from "../components/FavoriteButton";
 
 type Listing = {
@@ -77,7 +78,15 @@ export default function FavoritesPage() {
                 />
                 <Link href={`/listing/${l.id}`} className="card">
                   <span className="pin" />
-                  {l.media[0] && <img src={l.media[0].url} alt={l.title} />}
+                  {l.media[0] && (
+                    <Image
+                      src={l.media[0].url}
+                      alt={l.title}
+                      width={440}
+                      height={260}
+                      sizes="(max-width: 640px) 90vw, 220px"
+                    />
+                  )}
                   <h4>{l.title}</h4>
                   <div className="price">
                     {l.askingPrice != null ? <>Asking J${l.askingPrice.toLocaleString()}</> : <>Open to offers</>}

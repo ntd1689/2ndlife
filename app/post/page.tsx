@@ -5,6 +5,7 @@ import PayPalCheckoutButtons from "../components/PayPalCheckoutButtons";
 import DescriptionEditor from "../components/DescriptionEditor";
 import GoogleSignInButton from "../components/GoogleSignInButton";
 import { MAX_PHOTOS } from "@/lib/data/categories";
+import { downscaleImage } from "@/lib/resize-image";
 
 const PARISHES = [
   "Kingston","St. Andrew","St. Catherine","Clarendon","Manchester","St. Elizabeth",
@@ -140,6 +141,7 @@ export default function PostAdPage() {
 
   async function uploadFile(file: File, type: "photo" | "video") {
     try {
+      if (type === "photo") file = await downscaleImage(file);
       const ext = file.name.split(".").pop() || "bin";
       const presignRes = await fetch("/api/uploads/presign", {
         method: "POST",

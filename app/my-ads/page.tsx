@@ -2,9 +2,11 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
+import Image from "next/image";
 import { CATEGORIES, ARCHIVE_WINDOW_DAYS, MAX_PHOTOS } from "@/lib/data/categories";
 import { PARISHES } from "@/lib/data/parishes";
 import DescriptionEditor from "../components/DescriptionEditor";
+import { downscaleImage } from "@/lib/resize-image";
 import MarkdownText from "../components/MarkdownText";
 import PromoteDialog from "../components/PromoteDialog";
 
@@ -222,6 +224,7 @@ export default function MyAdsPage() {
   }
 
   async function uploadFile(file: File, type: "photo" | "video") {
+    if (type === "photo") file = await downscaleImage(file);
     const ext = file.name.split(".").pop() || "bin";
     const presignRes = await fetch("/api/uploads/presign", {
       method: "POST",
@@ -389,10 +392,13 @@ export default function MyAdsPage() {
 
         return (
           <div key={listing.id} className="panel" style={{ maxWidth: "none" }}>
-            {listing.media[0] && (
-              <img
-                src={listing.media[0].url}
+            {listing.media.find((m) => m.type === "photo") && (
+              <Image
+                src={listing.media.find((m) => m.type === "photo")!.url}
                 alt={listing.title}
+                width={1280}
+                height={440}
+                sizes="(max-width: 768px) 100vw, 1050px"
                 style={{ width: "100%", maxHeight: 220, objectFit: "cover", borderRadius: 4, marginBottom: 16 }}
               />
             )}

@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
+import Image from "next/image";
 import { PARISHES } from "@/lib/data/parishes";
 
 export type NavCategory = {
@@ -403,7 +404,7 @@ export default function MarketplaceNav({
                 )}
                 {activeCategory.spotlight.map((l) => (
                   <Link key={l.id} href={`/listing/${l.id}`} className="mk-spot-card">
-                    {l.image ? <img src={l.image} alt="" /> : <span className="mk-spot-placeholder" aria-hidden="true">{CATEGORY_ICONS[activeCategory.name]}</span>}
+                    {l.image ? <Image src={l.image} alt="" width={320} height={200} sizes="160px" /> : <span className="mk-spot-placeholder" aria-hidden="true">{CATEGORY_ICONS[activeCategory.name]}</span>}
                     <span className="mk-spot-text">
                       <span className="mk-spot-title">{l.title}</span>
                       <span className="mk-spot-price">{l.askingPrice != null ? `Asking J$${l.askingPrice.toLocaleString()}` : "Open to offers"}</span>

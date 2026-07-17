@@ -3,7 +3,13 @@ const nextConfig = {
   poweredByHeader: false,
   reactStrictMode: true,
   images: {
-    remotePatterns: [{ protocol: "https", hostname: "**" }],
+    // Only optimize images from our own media storage — a "**" wildcard would
+    // let anyone use this site's image optimizer as a free proxy.
+    remotePatterns: [
+      { protocol: "https", hostname: "*.r2.dev" },
+      { protocol: "https", hostname: "media.2ndlifejm.net" },
+      { protocol: "https", hostname: "lh3.googleusercontent.com" }, // Google profile photos
+    ],
   },
 };
 

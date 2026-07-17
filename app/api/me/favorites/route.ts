@@ -17,7 +17,8 @@ export async function GET() {
         include: {
           listing: {
             include: {
-              media: { orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }], take: 1 },
+              // Card thumbnails are photos only (videos can't be optimized).
+              media: { where: { type: "photo" }, orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }], take: 1 },
               parish: true,
               category: true,
               subcategory: true,
