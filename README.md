@@ -131,7 +131,7 @@ instead of actually sent — useful for testing the flow with zero email cost.
 2. Grab an API key from the dashboard → fills `RESEND_API_KEY`.
 3. While testing, `onboarding@resend.dev` works as the `from` address with no
    setup. Once you're ready for real users, verify your own domain in Resend
-   (e.g. `noreply@2ndlife.com.jm`) and update `RESEND_FROM_EMAIL` — this
+   (e.g. `noreply@2ndlifejm.net`) and update `RESEND_FROM_EMAIL` — this
    matters for deliverability (verified-domain emails are far less likely to
    land in spam than the shared sandbox address).
 4. Free tier is generous (100 emails/day, 3,000/month as of writing) — likely
@@ -154,7 +154,7 @@ Google SSO is optional; skip this and users just sign in by email OTP.
    create an **OAuth 2.0 Client ID** (application type: Web application).
 2. Under **Authorized redirect URIs**, add `<your site origin>/api/auth/google/callback`
    — e.g. `http://localhost:3000/api/auth/google/callback` for local dev and
-   `https://yourdomain.com.jm/api/auth/google/callback` for production. Add both
+   `https://www.2ndlifejm.net/api/auth/google/callback` for production. Add both
    if you want SSO to work in both places.
 3. Copy the generated client ID and secret into `GOOGLE_CLIENT_ID` and
    `GOOGLE_CLIENT_SECRET`. The "Sign in with Google" buttons appear
@@ -167,10 +167,9 @@ credentials and integration docs — implement `lib/payments/lynk.ts` the same
 way `lib/payments/paypal.ts` is built. Until then, only offer PayPal as a
 payment option in the UI.
 
-### Domain — .com.jm
-1. Register through a mainstream registrar that supports `.com.jm`
-   (e.g. Gandi, or a Jamaica-based registrar). It's open to anyone, no
-   residency requirement.
+### Domain — 2ndlifejm.net
+1. Register `2ndlifejm.net` through any mainstream registrar (Namecheap,
+   Cloudflare, GoDaddy, …) — `.net` has no special requirements.
 2. Once registered, point its DNS at Vercel (Vercel will show you the exact
    A/CNAME records to add after you connect the domain in your Vercel project).
 
@@ -189,8 +188,9 @@ payment option in the UI.
    lapsed premium tiers, expires free ads past their window, and purges old
    media). Enable "Protect your Cron Jobs" so `CRON_SECRET` is required — set
    the same value in your environment variables.
-6. In Vercel project settings → Domains, add your `.com.jm` domain and follow
-   the DNS instructions shown there.
+6. In Vercel project settings → Domains, add `www.2ndlifejm.net` (plus a
+   redirect from the bare `2ndlifejm.net`) and follow the DNS instructions
+   shown there.
 7. Run `npx prisma db push` once against your **production** database
    (from your local machine with `DATABASE_URL` pointed at production, or via
    a one-off Vercel deployment build step) and `npm run seed` to load parishes
