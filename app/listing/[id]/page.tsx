@@ -190,13 +190,13 @@ export default function ListingPage() {
         {error && <p className="error">{error}</p>}
 
         {viewer.offerAccepted && viewer.sellerContact && (
-          <div className="demo-note" style={{ marginTop: 16 }}>
-            <p style={{ margin: "0 0 4px" }}><b>Your offer was accepted!</b></p>
-            <p style={{ margin: "0 0 4px" }}>Seller email: {viewer.sellerContact.email}</p>
+          <div className="contact-card">
+            <h4>Your offer was accepted 🎉</h4>
+            <p>Seller email: <a href={`mailto:${viewer.sellerContact.email}`} style={{ textDecoration: "underline" }}>{viewer.sellerContact.email}</a></p>
             {viewer.sellerContact.phone
-              ? <p style={{ margin: "0 0 4px" }}>Seller phone: {viewer.sellerContact.phone}</p>
-              : <p style={{ margin: "0 0 4px" }} className="note">Seller hasn't added a phone number — reach out by email.</p>}
-            <p style={{ margin: 0 }}>2ndLife doesn't process the item payment itself — arrange that directly with the seller.</p>
+              ? <p>Seller phone: <a href={`tel:${viewer.sellerContact.phone}`} style={{ textDecoration: "underline" }}>{viewer.sellerContact.phone}</a></p>
+              : <p className="contact-hint">Seller hasn't added a phone number — reach out by email.</p>}
+            <p className="contact-hint">2ndLife doesn't process the item payment itself — arrange that directly with the seller.</p>
           </div>
         )}
 
@@ -208,7 +208,7 @@ export default function ListingPage() {
               <label>Why are you reporting this ad?</label>
               <textarea value={reportReason} onChange={(e) => setReportReason(e.target.value)} rows={3} />
               {reportError && <p className="error">{reportError}</p>}
-              <div style={{ display: "flex", gap: 10, marginTop: 8 }}>
+              <div className="btn-row">
                 <button onClick={submitReport} disabled={reportStatus === "sending"}>
                   {reportStatus === "sending" ? "Sending…" : "Submit report"}
                 </button>

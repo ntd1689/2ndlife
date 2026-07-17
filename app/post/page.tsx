@@ -310,7 +310,7 @@ export default function PostAdPage() {
             <label>Phone number (optional, recommended)</label>
             <input value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="+1 876 555 0100" />
           </div>
-          <div style={{ display: "flex", gap: 10 }}>
+          <div className="btn-row">
             <button onClick={() => confirmPhone(false)}>Save &amp; continue</button>
             <button className="secondary" onClick={() => confirmPhone(true)}>Skip for now</button>
           </div>

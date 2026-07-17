@@ -657,6 +657,20 @@ button.md-btn.active { background: var(--teal); color: #fff; }
 }
 .auth-divider::before, .auth-divider::after { content: ""; flex: 1; border-top: 1px solid #e6e0d2; }
 
+/* Profile / account settings */
+.profile-identity {
+  display: flex; align-items: center; gap: 14px;
+  padding-bottom: 16px; margin-bottom: 16px; border-bottom: 1px solid #e6e0d2;
+}
+.profile-avatar {
+  width: 52px; height: 52px; border-radius: 50%; object-fit: cover; flex-shrink: 0;
+}
+.profile-avatar-fallback {
+  display: inline-flex; align-items: center; justify-content: center;
+  background: var(--teal); color: var(--paper); font-weight: 700; font-size: 22px;
+}
+.profile-email { margin: 0 0 2px; font-weight: 600; color: var(--ink); }
+
 .md-preview {
   border: 1px solid #e6e0d2; border-radius: 4px; padding: 10px 12px;
   min-height: 120px; background: #fdfbf6;
@@ -673,6 +687,19 @@ button.ghost {
 button.ghost:hover { background: none; color: var(--rust); }
 
 .detail-footer { margin-top: 22px; padding-top: 16px; border-top: 1px solid #e6e0d2; }
+
+/* Shared row of action buttons */
+.btn-row { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 10px; }
+
+/* Seller contact card shown to the buyer whose offer was accepted */
+.contact-card {
+  margin-top: 16px; padding: 14px 16px; border-radius: 4px;
+  background: #f1f6f4; border: 1px solid #cfe1db; border-left: 4px solid var(--teal);
+}
+.contact-card h4 { margin: 0 0 8px; font-size: 15px; color: var(--teal); }
+.contact-card p { margin: 0 0 4px; font-size: 13.5px; }
+.contact-card p:last-child { margin: 0; }
+.contact-card .contact-hint { color: #8a8374; font-size: 12.5px; }
 
 /* FORMS / DETAIL PANELS (lighter card, not pinned) */
 .panel {
