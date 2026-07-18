@@ -63,20 +63,24 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Payment was not completed" }, { status: 400 });
     }
 
-    const updatedCount = await prisma.$transaction(async (tx) => {
-      let count = 0;
-      for (const payment of payments) {
-        const mark = await tx.payment.updateMany({
-          where: { id: payment.id, status: "pending" },
-          data: { status: "completed", completedAt: new Date() },
-        });
-        if (mark.count === 1) {
-          await applyPaymentEffects(tx, payment);
-          count += 1;
+    const updatedCount = await prisma.$transaction(
+      async (tx) => {
+        let count = 0;
+        for (const payment of payments) {
+          const mark = await tx.payment.updateMany({
+            where: { id: payment.id, status: "pending" },
+            data: { status: "completed", completedAt: new Date() },
+          });
+          if (mark.count === 1) {
+            await applyPaymentEffects(tx, payment);
+            count += 1;
+          }
         }
-      }
-      return count;
-    });
+        return count;
+      },
+      // Several round-trips to a remote pooled DB; the 5s default is too tight.
+      { timeout: 15000 }
+    );
 
     const latest = await prisma.payment.findMany({ where: { providerRef: parsed.data.orderId, userId } });
     return NextResponse.json({ ok: true, idempotent: updatedCount === 0, payments: latest });

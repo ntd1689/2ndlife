@@ -63,20 +63,24 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    const updated = await prisma.$transaction(async (tx) => {
-      let count = 0;
-      for (const payment of payments) {
-        const mark = await tx.payment.updateMany({
-          where: { id: payment.id, status: "pending" },
-          data: { status: "completed", completedAt: new Date() },
-        });
-        if (mark.count === 1) {
-          await applyPaymentEffects(tx, payment);
-          count += 1;
+    const updated = await prisma.$transaction(
+      async (tx) => {
+        let count = 0;
+        for (const payment of payments) {
+          const mark = await tx.payment.updateMany({
+            where: { id: payment.id, status: "pending" },
+            data: { status: "completed", completedAt: new Date() },
+          });
+          if (mark.count === 1) {
+            await applyPaymentEffects(tx, payment);
+            count += 1;
+          }
         }
-      }
-      return count;
-    });
+        return count;
+      },
+      // Several round-trips to a remote pooled DB; the 5s default is too tight.
+      { timeout: 15000 }
+    );
 
     return NextResponse.json({ ok: true, updated });
   } catch (error) {

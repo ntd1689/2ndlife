@@ -14,7 +14,7 @@ export async function applyPaymentEffects(prisma: DbClient, payment: Payment): P
       select: { id: true, categoryId: true, sortOrder: true, premiumTier: true, premiumUntil: true },
     });
     if (!listing) return;
-    const settings = await getSettings();
+    const settings = await getSettings(prisma);
     const fallback = tier === "vip" ? settings.vipAdDays : settings.topAdDays;
     await applyPremiumPurchase(prisma, listing, tier, payment.premiumDays ?? fallback);
     return;
@@ -37,7 +37,7 @@ export async function applyPaymentEffects(prisma: DbClient, payment: Payment): P
   }
 
   if (payment.type === "relist") {
-    const { freeAdDays } = await getSettings();
+    const { freeAdDays } = await getSettings(prisma);
     await prisma.listing.update({
       where: { id: payment.listingId },
       data: {
