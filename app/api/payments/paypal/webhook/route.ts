@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { applyPaymentEffects } from "@/lib/payments/effects";
-import { verifyPaypalWebhookSignature } from "@/lib/payments/paypal";
+import { capturePaypalOrder, getPaypalOrder, verifyPaypalWebhookSignature } from "@/lib/payments/paypal";
 
 function getOrderIdFromEvent(event: any): string | null {
   const directOrderId = event?.resource?.id;
@@ -42,6 +42,25 @@ export async function POST(req: NextRequest) {
 
     if (payments.every((p) => p.status === "completed")) {
       return NextResponse.json({ ok: true, idempotent: true });
+    }
+
+    // "Order approved" only means the buyer said yes — the money hasn't moved
+    // yet. Capture it before treating the payment as complete; this also
+    // rescues checkouts where the buyer approved via PayPal's full-page
+    // redirect flow and never returned to the page that would have captured.
+    if (event?.event_type === "CHECKOUT.ORDER.APPROVED") {
+      let captured = false;
+      try {
+        const capture = await capturePaypalOrder(orderId);
+        captured = capture?.status === "COMPLETED";
+      } catch {
+        // Capture may have already happened elsewhere — check the order.
+        const order = await getPaypalOrder(orderId);
+        captured = order?.status === "COMPLETED";
+      }
+      if (!captured) {
+        return NextResponse.json({ ok: true, ignored: true, reason: "approved but not captured" });
+      }
     }
 
     const updated = await prisma.$transaction(async (tx) => {

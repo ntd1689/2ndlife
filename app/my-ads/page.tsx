@@ -60,6 +60,7 @@ export default function MyAdsPage() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [archiveConfirmListing, setArchiveConfirmListing] = useState<Listing | null>(null);
   const [promoteListing, setPromoteListing] = useState<Listing | null>(null);
+  const [promoNotice, setPromoNotice] = useState<"capturing" | "done" | "failed" | null>(null);
 
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
@@ -110,6 +111,30 @@ export default function MyAdsPage() {
 
   useEffect(() => {
     load();
+  }, []);
+
+  // If the buyer's browser blocked PayPal's popup, checkout falls back to a
+  // full-page redirect and returns here as /my-ads?token=<orderId>. The
+  // promote dialog is gone by then, so finish the capture from the URL.
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const orderId = params.get("token");
+    if (!orderId) return;
+    window.history.replaceState({}, "", "/my-ads");
+    setPromoNotice("capturing");
+    (async () => {
+      try {
+        const res = await fetch("/api/payments/paypal/capture", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ orderId }),
+        });
+        setPromoNotice(res.ok ? "done" : "failed");
+        if (res.ok) load();
+      } catch {
+        setPromoNotice("failed");
+      }
+    })();
   }, []);
 
   useEffect(() => {
@@ -375,6 +400,14 @@ export default function MyAdsPage() {
     <div className="wrap" style={{ maxWidth: 800 }}>
       <h1>Manage my ads</h1>
       {error && <p className="error">{error}</p>}
+      {promoNotice === "capturing" && <p className="note-light">Finishing your PayPal payment…</p>}
+      {promoNotice === "done" && <p className="note-light">Promotion active 🎉 — your ad's new placement is live.</p>}
+      {promoNotice === "failed" && (
+        <p className="error">
+          We couldn't confirm your PayPal payment. If you completed checkout, it will be applied automatically
+          within a few minutes — otherwise try promoting again.
+        </p>
+      )}
       {loading && <p className="note-light">Loading…</p>}
 
       {!loading && listings.length === 0 && (
