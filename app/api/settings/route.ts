@@ -12,6 +12,7 @@ export async function GET() {
     topAdDays: settings.topAdDays,
     vipAdPriceJmd: settings.vipAdPriceJmd,
     vipAdDays: settings.vipAdDays,
+    signupsEnabled: settings.signupsEnabled,
     googleSignInEnabled: getGoogleOAuth() !== null,
   });
 }

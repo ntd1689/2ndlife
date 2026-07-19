@@ -6,6 +6,7 @@ import Image from "next/image";
 import { CATEGORIES, ARCHIVE_WINDOW_DAYS, MAX_PHOTOS } from "@/lib/data/categories";
 import { PARISHES } from "@/lib/data/parishes";
 import DescriptionEditor from "../components/DescriptionEditor";
+import MoneyInput from "../components/MoneyInput";
 import { downscaleImage } from "@/lib/resize-image";
 import MarkdownText from "../components/MarkdownText";
 import PromoteDialog from "../components/PromoteDialog";
@@ -460,7 +461,7 @@ export default function MyAdsPage() {
                 </div>
                 <div className="field">
                   <label>Asking price (J$, optional)</label>
-                  <input value={price} onChange={(e) => setPrice(e.target.value)} type="number" placeholder="Leave blank to just take offers" />
+                  <MoneyInput value={price} onChange={setPrice} placeholder="Leave blank to just take offers" />
                 </div>
                 <div className="field">
                   <label>Parish</label>

@@ -3,6 +3,7 @@ import { z } from "zod";
 import { sendOtp } from "@/lib/email";
 import { prisma, withRetry } from "@/lib/prisma";
 import { checkRateLimit } from "@/lib/rate-limit";
+import { getSettings } from "@/lib/settings";
 
 const schema = z.object({ email: z.string().email() });
 
@@ -22,6 +23,21 @@ export async function POST(req: NextRequest) {
         { error: "Too many code requests. Please wait before trying again." },
         { status: 429, headers: { "Retry-After": String(localLimit.retryAfterSec) } }
       );
+    }
+
+    // Blocked accounts get no codes; brand-new emails get none while the
+    // admin has sign-ups switched off.
+    const account = await withRetry(() =>
+      prisma.user.findUnique({ where: { email }, select: { blockedAt: true } })
+    );
+    if (account?.blockedAt) {
+      return NextResponse.json({ error: "This account has been blocked. Contact support if you think this is a mistake." }, { status: 403 });
+    }
+    if (!account) {
+      const settings = await getSettings();
+      if (!settings.signupsEnabled) {
+        return NextResponse.json({ error: "New sign-ups are temporarily closed. Please check back soon." }, { status: 403 });
+      }
     }
 
     // Cross-instance guard using DB history to avoid bypassing in-memory limits.

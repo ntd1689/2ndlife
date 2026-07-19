@@ -62,6 +62,7 @@ export async function GET(req: NextRequest) {
 
   const user = await withRetry(async () => {
     const byGoogleId = await prisma.user.findUnique({ where: { googleId: profile.sub } });
+    if (byGoogleId?.blockedAt) return "blocked" as const;
     if (byGoogleId) {
       // Refresh profile details on each login.
       return prisma.user.update({
@@ -70,6 +71,7 @@ export async function GET(req: NextRequest) {
       });
     }
     const byEmail = await prisma.user.findUnique({ where: { email } });
+    if (byEmail?.blockedAt) return "blocked" as const;
     if (byEmail) {
       // Existing OTP account — link it to this Google account.
       return prisma.user.update({
@@ -82,6 +84,9 @@ export async function GET(req: NextRequest) {
         },
       });
     }
+    const { getSettings } = await import("@/lib/settings");
+    const settings = await getSettings();
+    if (!settings.signupsEnabled) return "signups_closed" as const;
     return prisma.user.create({
       data: {
         email,
@@ -92,6 +97,13 @@ export async function GET(req: NextRequest) {
       },
     });
   });
+
+  if (user === "blocked") {
+    return loginRedirect(origin, "This account has been blocked. Contact support if you think this is a mistake.");
+  }
+  if (user === "signups_closed") {
+    return loginRedirect(origin, "New sign-ups are temporarily closed. Please check back soon.");
+  }
 
   await createSession(user.id);
   const res = NextResponse.redirect(`${origin}${next}`);

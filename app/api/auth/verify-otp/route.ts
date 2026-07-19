@@ -4,6 +4,7 @@ import { verifyOtp } from "@/lib/email";
 import { prisma, withRetry } from "@/lib/prisma";
 import { createSession } from "@/lib/auth";
 import { checkRateLimit } from "@/lib/rate-limit";
+import { getSettings } from "@/lib/settings";
 
 const schema = z.object({
   email: z.string().email(),
@@ -31,6 +32,21 @@ export async function POST(req: NextRequest) {
     const ok = await verifyOtp(email, code);
     if (!ok) {
       return NextResponse.json({ error: "Incorrect or expired code" }, { status: 400 });
+    }
+
+    // Enforce blocking and the sign-ups switch even if a code was somehow
+    // obtained (e.g. requested before the block/switch happened).
+    const existing = await withRetry(() =>
+      prisma.user.findUnique({ where: { email }, select: { blockedAt: true } })
+    );
+    if (existing?.blockedAt) {
+      return NextResponse.json({ error: "This account has been blocked. Contact support if you think this is a mistake." }, { status: 403 });
+    }
+    if (!existing) {
+      const settings = await getSettings();
+      if (!settings.signupsEnabled) {
+        return NextResponse.json({ error: "New sign-ups are temporarily closed. Please check back soon." }, { status: 403 });
+      }
     }
 
     const user = await withRetry(() =>

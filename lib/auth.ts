@@ -35,7 +35,16 @@ export async function getSessionUserId(): Promise<string | null> {
       issuer: JWT_ISSUER,
       audience: JWT_AUDIENCE,
     });
-    return (payload.userId as string) ?? null;
+    const userId = (payload.userId as string) ?? null;
+    if (!userId) return null;
+
+    // Admin blocks must take effect immediately, not when the JWT expires —
+    // treat a blocked (or deleted) user's session as no session at all.
+    const { prisma } = await import("@/lib/prisma");
+    const user = await prisma.user.findUnique({ where: { id: userId }, select: { blockedAt: true } });
+    if (!user || user.blockedAt) return null;
+
+    return userId;
   } catch {
     return null;
   }

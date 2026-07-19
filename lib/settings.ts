@@ -10,6 +10,7 @@ export type MarketplaceSettings = {
   vipAdPriceJmd: number;
   vipAdDays: number;
   refundWindowDays: number;
+  signupsEnabled: boolean;
 };
 
 // Reads the singleton settings row, creating it with defaults on first use.
@@ -29,6 +30,7 @@ export async function getSettings(db?: DbClient): Promise<MarketplaceSettings> {
     vipAdPriceJmd: row.vipAdPriceJmd,
     vipAdDays: row.vipAdDays,
     refundWindowDays: row.refundWindowDays,
+    signupsEnabled: row.signupsEnabled,
   };
 }
 
@@ -43,5 +45,6 @@ export async function updateSettings(data: Partial<MarketplaceSettings>): Promis
     vipAdPriceJmd: row.vipAdPriceJmd,
     vipAdDays: row.vipAdDays,
     refundWindowDays: row.refundWindowDays,
+    signupsEnabled: row.signupsEnabled,
   };
 }

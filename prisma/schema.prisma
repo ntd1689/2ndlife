@@ -76,6 +76,7 @@ model User {
   image         String?    // profile picture URL (from Google profile)
   googleId      String?    @unique // Google account subject id when signed up via SSO
   userType      UserType   @default(advertiser)
+  blockedAt     DateTime?  // set by an admin; blocked users can't log in or use their session
   createdAt     DateTime   @default(now())
 
   listings      Listing[]
@@ -203,6 +204,7 @@ model AdminSettings {
   vipAdPriceJmd    Int      @default(3000)
   vipAdDays        Int      @default(7)
   refundWindowDays Int      @default(7) // how long after payment an advertiser may request a refund
+  signupsEnabled   Boolean  @default(true) // admin kill-switch for new advertiser account creation
   updatedAt        DateTime @updatedAt
 }
 

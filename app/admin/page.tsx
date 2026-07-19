@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import MoneyInput from "../components/MoneyInput";
 
 type Me = { user: { id: string; email: string } | null; isAdmin: boolean };
 
@@ -28,6 +29,18 @@ type Settings = {
   vipAdPriceJmd: number;
   vipAdDays: number;
   refundWindowDays: number;
+  signupsEnabled: boolean;
+};
+
+type AdminUser = {
+  id: string;
+  email: string;
+  name: string | null;
+  phone: string | null;
+  createdAt: string;
+  blockedAt: string | null;
+  listingCount: number;
+  paymentCount: number;
 };
 
 type RefundRequest = {
@@ -74,6 +87,10 @@ export default function AdminPage() {
 
   const [refunds, setRefunds] = useState<RefundRequest[]>([]);
   const [refundsLoading, setRefundsLoading] = useState(false);
+
+  const [users, setUsers] = useState<AdminUser[]>([]);
+  const [usersLoading, setUsersLoading] = useState(false);
+  const [userQ, setUserQ] = useState("");
 
   const [listings, setListings] = useState<AdminListing[]>([]);
   const [listingsLoading, setListingsLoading] = useState(false);
@@ -140,8 +157,42 @@ export default function AdminPage() {
       loadListings();
       loadSettings();
       loadRefunds();
+      loadUsers();
     }
   }, [me?.isAdmin]);
+
+  async function loadUsers(query?: string) {
+    setUsersLoading(true);
+    try {
+      const params = new URLSearchParams();
+      const q = query ?? userQ;
+      if (q) params.set("q", q);
+      const res = await fetch(`/api/admin/users?${params.toString()}`);
+      const data = await res.json();
+      if (res.ok) setUsers(data.users);
+    } finally {
+      setUsersLoading(false);
+    }
+  }
+
+  async function toggleUserBlock(u: AdminUser) {
+    const action = u.blockedAt ? "unblock" : "block";
+    if (action === "block" && !confirm(`Block ${u.email}? They will be logged out everywhere and unable to sign in.`)) return;
+    setActionError("");
+    setActingId(u.id);
+    try {
+      const res = await fetch(`/api/admin/users/${u.id}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) { setActionError(data.error || "Could not update user"); return; }
+      await loadUsers();
+    } finally {
+      setActingId(null);
+    }
+  }
 
   async function loadRefunds() {
     setRefundsLoading(true);
@@ -391,7 +442,7 @@ export default function AdminPage() {
             </div>
             <div className="field" style={{ width: 150 }}>
               <label>Top Ad price (J$)</label>
-              <input type="number" min={0} value={settings.topAdPriceJmd} onChange={(e) => setSetting("topAdPriceJmd", e.target.value)} />
+              <MoneyInput value={String(settings.topAdPriceJmd)} onChange={(v) => setSetting("topAdPriceJmd", v)} />
             </div>
             <div className="field" style={{ width: 140 }}>
               <label>Top Ad days</label>
@@ -399,7 +450,7 @@ export default function AdminPage() {
             </div>
             <div className="field" style={{ width: 150 }}>
               <label>VIP Ad price (J$)</label>
-              <input type="number" min={0} value={settings.vipAdPriceJmd} onChange={(e) => setSetting("vipAdPriceJmd", e.target.value)} />
+              <MoneyInput value={String(settings.vipAdPriceJmd)} onChange={(v) => setSetting("vipAdPriceJmd", v)} />
             </div>
             <div className="field" style={{ width: 140 }}>
               <label>VIP Ad days</label>
@@ -408,6 +459,15 @@ export default function AdminPage() {
             <div className="field" style={{ width: 170 }}>
               <label>Refund window (days)</label>
               <input type="number" min={0} value={settings.refundWindowDays} onChange={(e) => setSetting("refundWindowDays", e.target.value)} />
+            </div>
+            <div className="field" style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+              <input
+                type="checkbox"
+                checked={settings.signupsEnabled}
+                onChange={(e) => setSettings((prev) => (prev ? { ...prev, signupsEnabled: e.target.checked } : prev))}
+                style={{ width: "auto" }}
+              />
+              <label style={{ margin: 0 }}>Allow new sign-ups</label>
             </div>
             <button disabled={settingsBusy} onClick={saveSettings}>{settingsBusy ? "Saving…" : "Save settings"}</button>
             {settingsMsg && <span className="note">{settingsMsg}</span>}
@@ -451,6 +511,48 @@ export default function AdminPage() {
             <button className="secondary" onClick={() => resolveRefund(r.id, "deny")} disabled={actingId === r.id}>
               Deny
             </button>
+          </div>
+        </div>
+      ))}
+
+      <h2 style={{ marginTop: 30 }}>Users</h2>
+      <div className="panel" style={{ maxWidth: "none" }}>
+        <div style={{ display: "flex", gap: 10, flexWrap: "wrap", alignItems: "flex-end" }}>
+          <div className="field" style={{ flex: 1, minWidth: 220, marginBottom: 0 }}>
+            <label>Search by email, phone, or name</label>
+            <input
+              value={userQ}
+              onChange={(e) => setUserQ(e.target.value)}
+              onKeyDown={(e) => e.key === "Enter" && loadUsers()}
+              placeholder="e.g. marcia@… or 876…"
+            />
+          </div>
+          <button onClick={() => loadUsers()}>Search</button>
+        </div>
+      </div>
+      {usersLoading && <p className="note-light">Loading…</p>}
+      {!usersLoading && users.length === 0 && <p className="note">No users match.</p>}
+      {users.map((u) => (
+        <div key={u.id} className="panel" style={{ maxWidth: "none" }}>
+          <div className="payment-row">
+            <div>
+              <b>{u.email}</b>
+              {u.blockedAt && <span className="tag pay-failed" style={{ marginLeft: 8 }}>BLOCKED</span>}
+              <p className="note" style={{ margin: "4px 0 0" }}>
+                {u.name ? `${u.name} · ` : ""}{u.phone ? `${u.phone} · ` : ""}
+                joined {new Date(u.createdAt).toLocaleDateString()} · {u.listingCount} ad{u.listingCount === 1 ? "" : "s"} · {u.paymentCount} payment{u.paymentCount === 1 ? "" : "s"}
+                {u.blockedAt && <> · blocked {new Date(u.blockedAt).toLocaleDateString()}</>}
+              </p>
+            </div>
+            <div className="payment-side">
+              <button
+                className={u.blockedAt ? "secondary" : ""}
+                onClick={() => toggleUserBlock(u)}
+                disabled={actingId === u.id}
+              >
+                {actingId === u.id ? "Working…" : u.blockedAt ? "Unblock" : "Block"}
+              </button>
+            </div>
           </div>
         </div>
       ))}

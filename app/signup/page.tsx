@@ -17,6 +17,7 @@ export default function SignupPage() {
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
   const [googleEnabled, setGoogleEnabled] = useState(false);
+  const [signupsClosed, setSignupsClosed] = useState(false);
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -25,7 +26,7 @@ export default function SignupPage() {
 
     fetch("/api/settings")
       .then((r) => r.json())
-      .then((d) => setGoogleEnabled(!!d.googleSignInEnabled))
+      .then((d) => { setGoogleEnabled(!!d.googleSignInEnabled); setSignupsClosed(d.signupsEnabled === false); })
       .catch(() => {});
   }, []);
 
@@ -120,7 +121,18 @@ export default function SignupPage() {
       <h1>Create your account</h1>
       {error && <p className="error">{error}</p>}
 
-      {step === "email" && (
+      {signupsClosed && step === "email" && (
+        <div className="panel">
+          <p style={{ margin: 0 }}>
+            New sign-ups are temporarily closed — please check back soon.
+          </p>
+          <p className="note" style={{ marginTop: 8 }}>
+            Already have an account? <Link href="/login" style={{ textDecoration: "underline" }}>Log in</Link>
+          </p>
+        </div>
+      )}
+
+      {!signupsClosed && step === "email" && (
         <div className="panel">
           {googleEnabled && (
             <>

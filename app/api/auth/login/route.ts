@@ -35,12 +35,18 @@ export async function POST(req: NextRequest) {
   const user = await withRetry(() =>
     prisma.user.findUnique({
       where: { email },
-      select: { id: true, userType: true },
+      select: { id: true, userType: true, blockedAt: true },
     })
   );
   if (!user || user.userType !== "advertiser") {
     return NextResponse.json(
       { error: "No account found for this email. Please sign up first." },
+      { status: 403 }
+    );
+  }
+  if (user.blockedAt) {
+    return NextResponse.json(
+      { error: "This account has been blocked. Contact support if you think this is a mistake." },
       { status: 403 }
     );
   }

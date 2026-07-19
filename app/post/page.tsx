@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import PayPalCheckoutButtons from "../components/PayPalCheckoutButtons";
 import DescriptionEditor from "../components/DescriptionEditor";
+import MoneyInput from "../components/MoneyInput";
 import GoogleSignInButton from "../components/GoogleSignInButton";
 import { MAX_PHOTOS } from "@/lib/data/categories";
 import { downscaleImage } from "@/lib/resize-image";
@@ -324,7 +325,7 @@ export default function PostAdPage() {
           <div className="field"><label>Title</label><input value={title} onChange={(e) => setTitle(e.target.value)} /></div>
           <div className="field">
             <label>Asking price (J$, optional)</label>
-            <input value={price} onChange={(e) => setPrice(e.target.value)} type="number" placeholder="Leave blank to just take offers" />
+            <MoneyInput value={price} onChange={setPrice} placeholder="Leave blank to just take offers" />
             <p className="note" style={{ margin: 0 }}>
               Buyers make offers either way — payment is arranged directly between you and the buyer, not through the site.
             </p>

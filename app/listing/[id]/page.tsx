@@ -5,6 +5,7 @@ import { useParams } from "next/navigation";
 import CategoryBreadcrumb from "../../components/CategoryBreadcrumb";
 import MarkdownText from "../../components/MarkdownText";
 import FavoriteButton from "../../components/FavoriteButton";
+import MoneyInput from "../../components/MoneyInput";
 
 function isPremium(l: { premiumTier?: string; premiumUntil?: string | null }): "top" | "vip" | null {
   if (!l.premiumTier || l.premiumTier === "none" || !l.premiumUntil) return null;
@@ -175,7 +176,7 @@ export default function ListingPage() {
                 <label>
                   Your offer (J$){highOffer != null ? ` — must be more than J$${highOffer.toLocaleString()}` : ""}
                 </label>
-                <input value={offerAmount} onChange={(e) => setOfferAmount(e.target.value)} type="number" min={1} />
+                <MoneyInput value={offerAmount} onChange={setOfferAmount} />
               </div>
               <button onClick={makeOffer}>Make an offer</button>
               {offerSent && !error && (
