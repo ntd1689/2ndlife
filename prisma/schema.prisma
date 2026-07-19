@@ -150,6 +150,7 @@ model Listing {
   offerEndAt    DateTime?     // optional deadline after which new offers are rejected
 
   createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @default(now()) @updatedAt
   expiresAt     DateTime?     // set on create for free-plan listings (createdAt + 7 days)
   archivedAt    DateTime?     // set when status -> expired (archive window starts)
   deletedAt     DateTime?     // set when media is permanently removed

@@ -10,6 +10,7 @@ type AdminListing = {
   status: string;
   askingPrice: number | null;
   createdAt: string;
+  updatedAt: string;
   user: { email: string };
   media: { url: string }[];
   openReportCount: number;
@@ -79,6 +80,7 @@ export default function AdminPage() {
   const [q, setQ] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
   const [reportedOnly, setReportedOnly] = useState(false);
+  const [sortBy, setSortBy] = useState("position");
 
   const [actionError, setActionError] = useState("");
   const [actingId, setActingId] = useState<string | null>(null);
@@ -113,13 +115,14 @@ export default function AdminPage() {
     }
   }
 
-  async function loadListings() {
+  async function loadListings(sortOverride?: string) {
     setListingsLoading(true);
     try {
       const params = new URLSearchParams();
       if (q) params.set("q", q);
       if (statusFilter) params.set("status", statusFilter);
       if (reportedOnly) params.set("reported", "true");
+      params.set("sort", sortOverride ?? sortBy);
       const res = await fetch(`/api/admin/listings?${params.toString()}`);
       const data = await res.json();
       if (res.ok) {
@@ -492,11 +495,24 @@ export default function AdminPage() {
               {LISTING_STATUSES.map((s) => <option key={s} value={s}>{s}</option>)}
             </select>
           </div>
+          <div className="field">
+            <label>Sort by</label>
+            <select
+              value={sortBy}
+              onChange={(e) => { setSortBy(e.target.value); loadListings(e.target.value); }}
+            >
+              <option value="position">Position weight</option>
+              <option value="created_desc">Date created (newest)</option>
+              <option value="created_asc">Date created (oldest)</option>
+              <option value="updated_desc">Last updated (newest)</option>
+              <option value="updated_asc">Last updated (oldest)</option>
+            </select>
+          </div>
           <div className="field" style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
             <input type="checkbox" checked={reportedOnly} onChange={(e) => setReportedOnly(e.target.checked)} style={{ width: "auto" }} />
             <label style={{ margin: 0 }}>Has open reports</label>
           </div>
-          <button onClick={loadListings}>Search</button>
+          <button onClick={() => loadListings()}>Search</button>
         </div>
       </div>
 
@@ -514,6 +530,8 @@ export default function AdminPage() {
             <p className="note" style={{ margin: "0 0 8px" }}>
               {l.user.email} · {l.category.name} · status: {l.status}{tierLabel(l)} · 👁 {l.uniqueViews} view{l.uniqueViews === 1 ? "" : "s"}
               {l.openReportCount > 0 && <> · {l.openReportCount} open report{l.openReportCount === 1 ? "" : "s"}</>}
+              <br />
+              created {new Date(l.createdAt).toLocaleDateString()} · updated {new Date(l.updatedAt).toLocaleDateString()}
             </p>
             {l.status === "active" && (
               <div style={{ display: "flex", gap: 10, flexWrap: "wrap", alignItems: "flex-end", marginBottom: 10 }}>

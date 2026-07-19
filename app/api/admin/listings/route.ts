@@ -4,6 +4,15 @@ import { getSessionAdmin } from "@/lib/admin";
 
 const STATUSES = ["active", "expired", "archived", "deleted", "sold", "removed"] as const;
 
+// Admin list ordering options; "position" is the marketplace's own ranking.
+const SORTS: Record<string, { orderBy: object[] }> = {
+  position: { orderBy: [{ sortOrder: "asc" }, { createdAt: "desc" }] },
+  created_desc: { orderBy: [{ createdAt: "desc" }] },
+  created_asc: { orderBy: [{ createdAt: "asc" }] },
+  updated_desc: { orderBy: [{ updatedAt: "desc" }] },
+  updated_asc: { orderBy: [{ updatedAt: "asc" }] },
+};
+
 export async function GET(req: NextRequest) {
   const admin = await getSessionAdmin();
   if (!admin) return NextResponse.json({ error: "Not authorized" }, { status: 403 });
@@ -13,6 +22,7 @@ export async function GET(req: NextRequest) {
   const statusParam = searchParams.get("status");
   const status = STATUSES.find((s) => s === statusParam);
   const reportedOnly = searchParams.get("reported") === "true";
+  const sort = SORTS[searchParams.get("sort") ?? "position"] ?? SORTS.position;
 
   const listings = await withRetry(() =>
     prisma.listing.findMany({
@@ -28,7 +38,7 @@ export async function GET(req: NextRequest) {
         category: { select: { name: true } },
         _count: { select: { views: true } },
       },
-      orderBy: [{ sortOrder: "asc" }, { createdAt: "desc" }],
+      orderBy: sort.orderBy as never,
       take: 200,
     })
   );
