@@ -177,7 +177,7 @@ export default function AdminPage() {
 
   async function toggleUserBlock(u: AdminUser) {
     const action = u.blockedAt ? "unblock" : "block";
-    if (action === "block" && !confirm(`Block ${u.email}? They will be logged out everywhere and unable to sign in.`)) return;
+    if (action === "block" && !confirm(`Block ${u.email}? They will be logged out everywhere, unable to sign in, and their active ads will be hidden.`)) return;
     setActionError("");
     setActingId(u.id);
     try {
@@ -188,7 +188,7 @@ export default function AdminPage() {
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) { setActionError(data.error || "Could not update user"); return; }
-      await loadUsers();
+      await Promise.all([loadUsers(), loadListings()]);
     } finally {
       setActingId(null);
     }

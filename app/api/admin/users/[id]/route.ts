@@ -28,13 +28,47 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     }
   }
 
-  const updated = await withRetry(() =>
-    prisma.user.update({
-      where: { id },
-      data: { blockedAt: parsed.data.action === "block" ? new Date() : null },
-      select: { id: true, email: true, blockedAt: true },
-    })
-  );
+  if (parsed.data.action === "block") {
+    // One shared timestamp marks both the block and the ads it hides, so
+    // unblock can restore exactly these ads and nothing else.
+    const now = new Date();
+    const [updated, hidden] = await withRetry(() =>
+      prisma.$transaction(
+        [
+          prisma.user.update({
+            where: { id },
+            data: { blockedAt: now },
+            select: { id: true, email: true, blockedAt: true },
+          }),
+          prisma.listing.updateMany({
+            where: { userId: id, status: "active" },
+            data: { status: "removed", archivedAt: now },
+          }),
+        ]
+      )
+    );
+    return NextResponse.json({ user: updated, hiddenAds: hidden.count });
+  }
 
-  return NextResponse.json({ user: updated });
+  // Unblock: bring back only the ads this block hid (archivedAt matches the
+  // block timestamp) — ads a moderator removed separately stay hidden.
+  const blockedAt = user.blockedAt;
+  const [updated, restored] = await withRetry(() =>
+    prisma.$transaction(
+      [
+        prisma.user.update({
+          where: { id },
+          data: { blockedAt: null },
+          select: { id: true, email: true, blockedAt: true },
+        }),
+        prisma.listing.updateMany({
+          where: blockedAt
+            ? { userId: id, status: "removed", archivedAt: blockedAt }
+            : { id: "never-matches" },
+          data: { status: "active", archivedAt: null },
+        }),
+      ]
+    )
+  );
+  return NextResponse.json({ user: updated, restoredAds: restored.count });
 }
