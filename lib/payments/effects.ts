@@ -1,6 +1,6 @@
 import { Prisma, PrismaClient, Payment } from "@prisma/client";
 import { getSettings } from "@/lib/settings";
-import { applyPremiumPurchase } from "@/lib/premium";
+import { applyPremiumPurchase, DEFAULT_SORT_ORDER } from "@/lib/premium";
 
 type DbClient = PrismaClient | Prisma.TransactionClient;
 
@@ -47,6 +47,37 @@ export async function applyPaymentEffects(prisma: DbClient, payment: Payment): P
         expiresAt: new Date(Date.now() + freeAdDays * 86400000),
         archivedAt: null,
       },
+    });
+  }
+}
+
+// Undo what a payment bought, applied when a refund is approved. Deliberately
+// gentle where reversal would surprise (an unlimited/relist ad drops back to
+// the free plan with a fresh free window rather than expiring on the spot).
+export async function revertPaymentEffects(prisma: DbClient, payment: Payment): Promise<void> {
+  if (!payment.listingId) return;
+
+  if (payment.type === "top_ad" || payment.type === "vip_ad") {
+    await prisma.listing.update({
+      where: { id: payment.listingId },
+      data: { premiumTier: "none", premiumUntil: null, sortOrder: DEFAULT_SORT_ORDER },
+    });
+    return;
+  }
+
+  if (payment.type === "featured") {
+    await prisma.listing.update({
+      where: { id: payment.listingId },
+      data: { featured: false },
+    });
+    return;
+  }
+
+  if (payment.type === "unlimited_listing" || payment.type === "relist") {
+    const { freeAdDays } = await getSettings(prisma);
+    await prisma.listing.update({
+      where: { id: payment.listingId },
+      data: { plan: "free", expiresAt: new Date(Date.now() + freeAdDays * 86400000) },
     });
   }
 }

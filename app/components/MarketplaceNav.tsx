@@ -339,6 +339,7 @@ export default function MarketplaceNav({
                 <p className="mk-account-email">{user.email}</p>
                 <Link href="/my-ads" role="menuitem">📦 My listings</Link>
                 <Link href="/favorites" role="menuitem">❤️ Favorites</Link>
+                <Link href="/payments" role="menuitem">💳 My payments</Link>
                 <Link href="/profile" role="menuitem">⚙️ Account settings</Link>
                 <Link href="/post" role="menuitem">➕ Post an ad</Link>
                 {user.isAdmin && <Link href="/admin" role="menuitem">🛡️ Admin</Link>}
@@ -456,6 +457,7 @@ export default function MarketplaceNav({
               <div className="mk-drawer-links">
                 <Link href="/my-ads" onClick={() => setDrawerOpen(false)}>📦 My listings</Link>
                 <Link href="/favorites" onClick={() => setDrawerOpen(false)}>❤️ Favorites</Link>
+                <Link href="/payments" onClick={() => setDrawerOpen(false)}>💳 My payments</Link>
                 <Link href="/profile" onClick={() => setDrawerOpen(false)}>⚙️ Account settings</Link>
                 {user.isAdmin && <Link href="/admin" onClick={() => setDrawerOpen(false)}>🛡️ Admin</Link>}
                 <form action="/api/auth/logout" method="post">

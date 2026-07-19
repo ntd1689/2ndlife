@@ -26,6 +26,18 @@ type Settings = {
   topAdDays: number;
   vipAdPriceJmd: number;
   vipAdDays: number;
+  refundWindowDays: number;
+};
+
+type RefundRequest = {
+  id: string;
+  type: string;
+  amountJmd: number;
+  refundReason: string | null;
+  refundRequestedAt: string | null;
+  completedAt: string | null;
+  user: { email: string; name: string | null };
+  listing: { id: string; title: string } | null;
 };
 
 function tierLabel(l: AdminListing): string {
@@ -58,6 +70,9 @@ export default function AdminPage() {
 
   const [reports, setReports] = useState<Report[]>([]);
   const [reportsLoading, setReportsLoading] = useState(false);
+
+  const [refunds, setRefunds] = useState<RefundRequest[]>([]);
+  const [refundsLoading, setRefundsLoading] = useState(false);
 
   const [listings, setListings] = useState<AdminListing[]>([]);
   const [listingsLoading, setListingsLoading] = useState(false);
@@ -121,8 +136,38 @@ export default function AdminPage() {
       loadReports();
       loadListings();
       loadSettings();
+      loadRefunds();
     }
   }, [me?.isAdmin]);
+
+  async function loadRefunds() {
+    setRefundsLoading(true);
+    try {
+      const res = await fetch("/api/admin/refunds");
+      const data = await res.json();
+      if (res.ok) setRefunds(data.requests);
+    } finally {
+      setRefundsLoading(false);
+    }
+  }
+
+  async function resolveRefund(id: string, action: "approve" | "deny") {
+    if (action === "approve" && !confirm("Approve this refund? The money is returned via PayPal and the purchased upgrade is removed.")) return;
+    setActionError("");
+    setActingId(id);
+    try {
+      const res = await fetch(`/api/admin/refunds/${id}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) { setActionError(data.error || "Could not resolve refund request"); return; }
+      await Promise.all([loadRefunds(), loadListings()]);
+    } finally {
+      setActingId(null);
+    }
+  }
 
   async function loadSettings() {
     const res = await fetch("/api/admin/settings");
@@ -357,15 +402,55 @@ export default function AdminPage() {
               <label>VIP Ad days</label>
               <input type="number" min={1} value={settings.vipAdDays} onChange={(e) => setSetting("vipAdDays", e.target.value)} />
             </div>
+            <div className="field" style={{ width: 170 }}>
+              <label>Refund window (days)</label>
+              <input type="number" min={0} value={settings.refundWindowDays} onChange={(e) => setSetting("refundWindowDays", e.target.value)} />
+            </div>
             <button disabled={settingsBusy} onClick={saveSettings}>{settingsBusy ? "Saving…" : "Save settings"}</button>
             {settingsMsg && <span className="note">{settingsMsg}</span>}
           </div>
           <p className="note" style={{ margin: "8px 0 0" }}>
             Position weights: ads with weight 1-10 show as ★ VIP, 11-20 as TOP; anything higher is standard.
             Durations above apply when an ad enters a band; manual promotions can override the number of days per ad.
+            Refund window 0 disables refund requests entirely.
           </p>
         </div>
       )}
+
+      <h2 style={{ marginTop: 30 }}>Refund requests</h2>
+      {refundsLoading && <p className="note-light">Loading…</p>}
+      {!refundsLoading && refunds.length === 0 && <p className="note">No open refund requests.</p>}
+      {refunds.map((r) => (
+        <div key={r.id} className="panel" style={{ maxWidth: "none" }}>
+          <div className="payment-row">
+            <div>
+              <b>J${r.amountJmd.toLocaleString()}</b> · {r.type.replace(/_/g, " ")}
+              {r.listing && (
+                <>
+                  {" — "}
+                  <a href={`/listing/${r.listing.id}`} target="_blank" rel="noreferrer" style={{ textDecoration: "underline" }}>
+                    {r.listing.title}
+                  </a>
+                </>
+              )}
+              <p className="note" style={{ margin: "4px 0 0" }}>
+                {r.user.name ? `${r.user.name} · ` : ""}{r.user.email}
+                {" · paid "}{r.completedAt ? new Date(r.completedAt).toLocaleDateString() : "—"}
+                {" · requested "}{r.refundRequestedAt ? new Date(r.refundRequestedAt).toLocaleDateString() : "—"}
+              </p>
+            </div>
+          </div>
+          {r.refundReason && <p style={{ margin: "8px 0 0" }}>“{r.refundReason}”</p>}
+          <div className="btn-row">
+            <button onClick={() => resolveRefund(r.id, "approve")} disabled={actingId === r.id}>
+              {actingId === r.id ? "Working…" : "Approve refund"}
+            </button>
+            <button className="secondary" onClick={() => resolveRefund(r.id, "deny")} disabled={actingId === r.id}>
+              Deny
+            </button>
+          </div>
+        </div>
+      ))}
 
       <h2 style={{ marginTop: 30 }}>Open reports</h2>
       {reportsLoading && <p className="note-light">Loading…</p>}

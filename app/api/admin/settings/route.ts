@@ -15,6 +15,7 @@ const updateSchema = z.object({
   topAdDays: z.number().int().min(1).max(365),
   vipAdPriceJmd: z.number().int().min(0),
   vipAdDays: z.number().int().min(1).max(365),
+  refundWindowDays: z.number().int().min(0).max(90),
 });
 
 export async function PUT(req: NextRequest) {

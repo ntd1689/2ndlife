@@ -85,6 +85,26 @@ export async function getPaypalOrder(orderId: string) {
   return res.json();
 }
 
+// Refund the capture behind a completed order (full refund). We store the
+// order id on Payment rows, so look the capture id up from the order first.
+export async function refundPaypalOrder(orderId: string) {
+  const token = await getAccessToken();
+  const order = await getPaypalOrder(orderId);
+  const captureId = order?.purchase_units?.[0]?.payments?.captures?.[0]?.id;
+  if (!captureId) throw new Error(`No capture found on PayPal order ${orderId}`);
+
+  const res = await fetch(`${BASE_URL}/v2/payments/captures/${captureId}/refund`, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${token}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({}), // empty body = full refund
+  });
+  if (!res.ok) throw new Error("PayPal refund failed: " + (await res.text()));
+  return res.json(); // status: "COMPLETED" (or "PENDING") on success
+}
+
 export async function verifyPaypalWebhookSignature(
   headers: Headers,
   rawBody: string,

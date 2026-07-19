@@ -657,6 +657,17 @@ button.md-btn.active { background: var(--teal); color: #fff; }
 }
 .auth-divider::before, .auth-divider::after { content: ""; flex: 1; border-top: 1px solid #e6e0d2; }
 
+/* Payments */
+.payment-row { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; flex-wrap: wrap; }
+.payment-side { display: flex; align-items: center; gap: 10px; }
+.payment-amount { font-size: 16px; color: var(--teal); font-weight: 700; }
+.tag.pay-status { text-transform: none; letter-spacing: 0; }
+.tag.pay-completed { background: var(--teal); color: #fff; }
+.tag.pay-pending { background: #e6e0d2; color: var(--ink); }
+.tag.pay-failed { background: var(--rust); color: #fff; }
+.tag.pay-refund_requested { background: var(--mustard); color: var(--ink); }
+.tag.pay-refunded { background: #6b6b63; color: #fff; }
+
 /* Profile / account settings */
 .profile-identity {
   display: flex; align-items: center; gap: 14px;

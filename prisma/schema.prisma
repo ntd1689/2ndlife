@@ -53,6 +53,8 @@ enum PaymentStatus {
   pending
   completed
   failed
+  refund_requested
+  refunded
 }
 
 enum UserType {
@@ -193,13 +195,14 @@ model ListingView {
 
 // Singleton row (id = 1) of admin-tunable marketplace settings.
 model AdminSettings {
-  id            Int      @id @default(1)
-  freeAdDays    Int      @default(30)
-  topAdPriceJmd Int      @default(1500)
-  topAdDays     Int      @default(7)
-  vipAdPriceJmd Int      @default(3000)
-  vipAdDays     Int      @default(7)
-  updatedAt     DateTime @updatedAt
+  id               Int      @id @default(1)
+  freeAdDays       Int      @default(30)
+  topAdPriceJmd    Int      @default(1500)
+  topAdDays        Int      @default(7)
+  vipAdPriceJmd    Int      @default(3000)
+  vipAdDays        Int      @default(7)
+  refundWindowDays Int      @default(7) // how long after payment an advertiser may request a refund
+  updatedAt        DateTime @updatedAt
 }
 
 model ListingMedia {
@@ -247,6 +250,13 @@ model Payment {
 
   createdAt       DateTime        @default(now())
   completedAt     DateTime?
+
+  // Refund lifecycle: advertiser requests within the admin-set window,
+  // admin approves (money returned via provider, perk reverted) or denies
+  // (status returns to completed; requestedAt kept as history).
+  refundReason      String?
+  refundRequestedAt DateTime?
+  refundedAt        DateTime?
 }
 
 model Report {
