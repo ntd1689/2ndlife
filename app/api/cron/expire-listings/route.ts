@@ -35,10 +35,17 @@ export async function GET(req: NextRequest) {
   );
 
   // 2. Permanently delete media for listings archived/removed 30+ days ago.
+  //    Ads whose owner is currently blocked are exempt: their ads were hidden
+  //    by the block, and unblocking should bring them back photos and all —
+  //    however long the block lasts. Their purge clock resumes on unblock.
   const archiveCutoff = new Date(now.getTime() - ARCHIVE_WINDOW_DAYS * 86400000);
   const toDelete = await withRetry(() =>
     prisma.listing.findMany({
-      where: { status: { in: ["expired", "archived", "removed"] }, archivedAt: { lt: archiveCutoff } },
+      where: {
+        status: { in: ["expired", "archived", "removed"] },
+        archivedAt: { lt: archiveCutoff },
+        user: { blockedAt: null },
+      },
       include: { media: true },
     })
   );
