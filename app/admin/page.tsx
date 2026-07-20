@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import MoneyInput from "../components/MoneyInput";
+import Pagination from "../components/Pagination";
 
 type Me = { user: { id: string; email: string } | null; isAdmin: boolean };
 
@@ -73,9 +74,42 @@ type Report = {
 
 const LISTING_STATUSES = ["active", "expired", "archived", "sold", "removed", "deleted"];
 
+type SectionKey = "overview" | "listings" | "users" | "reports" | "refunds" | "settings";
+
+const NAV: Array<
+  | { key: SectionKey; label: string; icon: string }
+  | { group: string; icon: string; children: { key: SectionKey; label: string; icon: string }[] }
+> = [
+  { key: "overview", label: "Overview", icon: "📊" },
+  { key: "listings", label: "Listings", icon: "📦" },
+  { key: "users", label: "Users", icon: "👥" },
+  {
+    group: "Moderation",
+    icon: "🛡️",
+    children: [
+      { key: "reports", label: "Reports", icon: "🚩" },
+      { key: "refunds", label: "Refunds", icon: "💸" },
+    ],
+  },
+  { key: "settings", label: "Settings", icon: "⚙️" },
+];
+
+const SECTION_TITLES: Record<SectionKey, string> = {
+  overview: "Overview",
+  listings: "Listings",
+  users: "Users",
+  reports: "Reports",
+  refunds: "Refund requests",
+  settings: "Marketplace settings",
+};
+
 export default function AdminPage() {
   const [me, setMe] = useState<Me | null>(null);
   const [meLoading, setMeLoading] = useState(true);
+
+  const [section, setSection] = useState<SectionKey>("overview");
+  const [drawerOpen, setDrawerOpen] = useState(false);
+  const [moderationOpen, setModerationOpen] = useState(true);
 
   const [email, setEmail] = useState("");
   const [code, setCode] = useState("");
@@ -92,6 +126,9 @@ export default function AdminPage() {
   const [users, setUsers] = useState<AdminUser[]>([]);
   const [usersLoading, setUsersLoading] = useState(false);
   const [userQ, setUserQ] = useState("");
+  const [usersPage, setUsersPage] = useState(1);
+  const [usersPageSize, setUsersPageSize] = useState(25);
+  const [usersTotal, setUsersTotal] = useState(0);
 
   const [listings, setListings] = useState<AdminListing[]>([]);
   const [listingsLoading, setListingsLoading] = useState(false);
@@ -99,6 +136,9 @@ export default function AdminPage() {
   const [statusFilter, setStatusFilter] = useState("");
   const [reportedOnly, setReportedOnly] = useState(false);
   const [sortBy, setSortBy] = useState("position");
+  const [listingsPage, setListingsPage] = useState(1);
+  const [listingsPageSize, setListingsPageSize] = useState(25);
+  const [listingsTotal, setListingsTotal] = useState(0);
 
   const [actionError, setActionError] = useState("");
   const [actingId, setActingId] = useState<string | null>(null);
@@ -133,22 +173,53 @@ export default function AdminPage() {
     }
   }
 
-  async function loadListings(sortOverride?: string) {
+  async function loadListings(opts: { page?: number; size?: number; sort?: string } = {}) {
+    const page = opts.page ?? listingsPage;
+    const size = opts.size ?? listingsPageSize;
+    const sort = opts.sort ?? sortBy;
     setListingsLoading(true);
     try {
       const params = new URLSearchParams();
       if (q) params.set("q", q);
       if (statusFilter) params.set("status", statusFilter);
       if (reportedOnly) params.set("reported", "true");
-      params.set("sort", sortOverride ?? sortBy);
+      params.set("sort", sort);
+      params.set("page", String(page));
+      params.set("pageSize", String(size));
       const res = await fetch(`/api/admin/listings?${params.toString()}`);
       const data = await res.json();
       if (res.ok) {
         setListings(data.listings);
+        setListingsTotal(data.total ?? data.listings.length);
+        setListingsPage(page);
+        setListingsPageSize(size);
         setSortDrafts(Object.fromEntries(data.listings.map((l: AdminListing) => [l.id, String(l.sortOrder)])));
       }
     } finally {
       setListingsLoading(false);
+    }
+  }
+
+  async function loadUsers(opts: { page?: number; size?: number; query?: string } = {}) {
+    const page = opts.page ?? usersPage;
+    const size = opts.size ?? usersPageSize;
+    const query = opts.query ?? userQ;
+    setUsersLoading(true);
+    try {
+      const params = new URLSearchParams();
+      if (query) params.set("q", query);
+      params.set("page", String(page));
+      params.set("pageSize", String(size));
+      const res = await fetch(`/api/admin/users?${params.toString()}`);
+      const data = await res.json();
+      if (res.ok) {
+        setUsers(data.users);
+        setUsersTotal(data.total ?? data.users.length);
+        setUsersPage(page);
+        setUsersPageSize(size);
+      }
+    } finally {
+      setUsersLoading(false);
     }
   }
 
@@ -160,21 +231,8 @@ export default function AdminPage() {
       loadRefunds();
       loadUsers();
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [me?.isAdmin]);
-
-  async function loadUsers(query?: string) {
-    setUsersLoading(true);
-    try {
-      const params = new URLSearchParams();
-      const q = query ?? userQ;
-      if (q) params.set("q", q);
-      const res = await fetch(`/api/admin/users?${params.toString()}`);
-      const data = await res.json();
-      if (res.ok) setUsers(data.users);
-    } finally {
-      setUsersLoading(false);
-    }
-  }
 
   async function toggleReviewer(u: AdminUser) {
     const action = u.userType === "ads_reviewer" ? "remove_reviewer" : "make_reviewer";
@@ -440,278 +498,414 @@ export default function AdminPage() {
     return (
       <div className="wrap">
         <h1>Admin</h1>
-        <p className="error">{me.user.email} doesn't have admin access.</p>
+        <p className="error">{me.user.email} doesn&apos;t have admin access.</p>
       </div>
     );
   }
 
+  function go(key: SectionKey) {
+    setSection(key);
+    setDrawerOpen(false);
+  }
+
   return (
-    <div className="wrap" style={{ maxWidth: 900 }}>
-      <h1>Admin</h1>
-      {actionError && <p className="error">{actionError}</p>}
-
-      <h2>Marketplace settings</h2>
-      {!settings && <p className="note-light">Loading…</p>}
-      {settings && (
-        <div className="panel" style={{ maxWidth: "none" }}>
-          <div style={{ display: "flex", gap: 14, flexWrap: "wrap", alignItems: "flex-end" }}>
-            <div className="field" style={{ width: 140 }}>
-              <label>Free ad days</label>
-              <input type="number" min={1} value={settings.freeAdDays} onChange={(e) => setSetting("freeAdDays", e.target.value)} />
-            </div>
-            <div className="field" style={{ width: 150 }}>
-              <label>Top Ad price (J$)</label>
-              <MoneyInput value={String(settings.topAdPriceJmd)} onChange={(v) => setSetting("topAdPriceJmd", v)} />
-            </div>
-            <div className="field" style={{ width: 140 }}>
-              <label>Top Ad days</label>
-              <input type="number" min={1} value={settings.topAdDays} onChange={(e) => setSetting("topAdDays", e.target.value)} />
-            </div>
-            <div className="field" style={{ width: 150 }}>
-              <label>VIP Ad price (J$)</label>
-              <MoneyInput value={String(settings.vipAdPriceJmd)} onChange={(v) => setSetting("vipAdPriceJmd", v)} />
-            </div>
-            <div className="field" style={{ width: 140 }}>
-              <label>VIP Ad days</label>
-              <input type="number" min={1} value={settings.vipAdDays} onChange={(e) => setSetting("vipAdDays", e.target.value)} />
-            </div>
-            <div className="field" style={{ width: 170 }}>
-              <label>Refund window (days)</label>
-              <input type="number" min={0} value={settings.refundWindowDays} onChange={(e) => setSetting("refundWindowDays", e.target.value)} />
-            </div>
-            <div className="field" style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
-              <input
-                type="checkbox"
-                checked={settings.signupsEnabled}
-                onChange={(e) => setSettings((prev) => (prev ? { ...prev, signupsEnabled: e.target.checked } : prev))}
-                style={{ width: "auto" }}
-              />
-              <label style={{ margin: 0 }}>Allow new sign-ups</label>
-            </div>
-            <button disabled={settingsBusy} onClick={saveSettings}>{settingsBusy ? "Saving…" : "Save settings"}</button>
-            {settingsMsg && <span className="note">{settingsMsg}</span>}
-          </div>
-          <p className="note" style={{ margin: "8px 0 0" }}>
-            Position weights: ads with weight 1-10 show as ★ VIP, 11-20 as TOP; anything higher is standard.
-            Durations above apply when an ad enters a band; manual promotions can override the number of days per ad.
-            Refund window 0 disables refund requests entirely.
-          </p>
-        </div>
-      )}
-
-      <h2 style={{ marginTop: 30 }}>Refund requests</h2>
-      {refundsLoading && <p className="note-light">Loading…</p>}
-      {!refundsLoading && refunds.length === 0 && <p className="note">No open refund requests.</p>}
-      {refunds.map((r) => (
-        <div key={r.id} className="panel" style={{ maxWidth: "none" }}>
-          <div className="payment-row">
-            <div>
-              <b>J${r.amountJmd.toLocaleString()}</b> · {r.type.replace(/_/g, " ")}
-              {r.listing && (
-                <>
-                  {" — "}
-                  <a href={`/listing/${r.listing.id}`} target="_blank" rel="noreferrer" style={{ textDecoration: "underline" }}>
-                    {r.listing.title}
-                  </a>
-                </>
-              )}
-              <p className="note" style={{ margin: "4px 0 0" }}>
-                {r.user.name ? `${r.user.name} · ` : ""}{r.user.email}
-                {" · paid "}{r.completedAt ? new Date(r.completedAt).toLocaleDateString() : "—"}
-                {" · requested "}{r.refundRequestedAt ? new Date(r.refundRequestedAt).toLocaleDateString() : "—"}
-              </p>
-            </div>
-          </div>
-          {r.refundReason && <p style={{ margin: "8px 0 0" }}>“{r.refundReason}”</p>}
-          <div className="btn-row">
-            <button onClick={() => resolveRefund(r.id, "approve")} disabled={actingId === r.id}>
-              {actingId === r.id ? "Working…" : "Approve refund"}
-            </button>
-            <button className="secondary" onClick={() => resolveRefund(r.id, "deny")} disabled={actingId === r.id}>
-              Deny
-            </button>
-          </div>
-        </div>
-      ))}
-
-      <h2 style={{ marginTop: 30 }}>Users</h2>
-      <div className="panel" style={{ maxWidth: "none" }}>
-        <div style={{ display: "flex", gap: 10, flexWrap: "wrap", alignItems: "flex-end" }}>
-          <div className="field" style={{ flex: 1, minWidth: 220, marginBottom: 0 }}>
-            <label>Search by email, phone, or name</label>
-            <input
-              value={userQ}
-              onChange={(e) => setUserQ(e.target.value)}
-              onKeyDown={(e) => e.key === "Enter" && loadUsers()}
-              placeholder="e.g. marcia@… or 876…"
-            />
-          </div>
-          <button onClick={() => loadUsers()}>Search</button>
-        </div>
-      </div>
-      {usersLoading && <p className="note-light">Loading…</p>}
-      {!usersLoading && users.length === 0 && <p className="note">No users match.</p>}
-      {users.map((u) => (
-        <div key={u.id} className="panel" style={{ maxWidth: "none" }}>
-          <div className="payment-row">
-            <div>
-              <b>{u.email}</b>
-              {u.userType === "ads_reviewer" && <span className="tag" style={{ marginLeft: 8 }}>REVIEWER</span>}
-              {u.blockedAt && <span className="tag pay-failed" style={{ marginLeft: 8 }}>BLOCKED</span>}
-              <p className="note" style={{ margin: "4px 0 0" }}>
-                {u.name ? `${u.name} · ` : ""}{u.phone ? `${u.phone} · ` : ""}
-                joined {new Date(u.createdAt).toLocaleDateString()} · {u.listingCount} ad{u.listingCount === 1 ? "" : "s"} · {u.paymentCount} payment{u.paymentCount === 1 ? "" : "s"}
-                {u.blockedAt && <> · blocked {new Date(u.blockedAt).toLocaleDateString()}</>}
-              </p>
-            </div>
-            <div className="payment-side">
-              <button className="secondary" onClick={() => toggleReviewer(u)} disabled={actingId === u.id}>
-                {u.userType === "ads_reviewer" ? "Remove reviewer" : "Make reviewer"}
-              </button>
-              <button
-                className={u.blockedAt ? "secondary" : ""}
-                onClick={() => toggleUserBlock(u)}
-                disabled={actingId === u.id}
-              >
-                {actingId === u.id ? "Working…" : u.blockedAt ? "Unblock" : "Block"}
-              </button>
-            </div>
-          </div>
-        </div>
-      ))}
-
-      <h2 style={{ marginTop: 30 }}>Open reports</h2>
-      {reportsLoading && <p className="note-light">Loading…</p>}
-      {!reportsLoading && reports.length === 0 && <p className="note">No open reports.</p>}
-      {reports.map((r) => (
-        <div key={r.id} className="panel" style={{ maxWidth: "none" }}>
-          <p style={{ margin: "0 0 4px" }}>
-            <b>{r.listing.title}</b> · listing status: {r.listing.status}
-          </p>
-          <p className="note" style={{ margin: "0 0 8px" }}>
-            Reported by {r.reporter.email} on {new Date(r.createdAt).toLocaleDateString()}
-          </p>
-          <p style={{ margin: "0 0 10px" }}>{r.reason}</p>
-          <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
-            <a href={`/listing/${r.listing.id}`} target="_blank" rel="noreferrer">
-              <button className="secondary">View ad</button>
-            </a>
-            <button onClick={() => hideListing(r.listing.id)} disabled={actingId === r.listing.id}>
-              Hide ad
-            </button>
-            <button className="secondary" onClick={() => resolveReport(r.id, "dismissed")} disabled={actingId === r.id}>
-              Dismiss report
-            </button>
-          </div>
-        </div>
-      ))}
-
-      <h2 style={{ marginTop: 30 }}>All ads</h2>
-      <div className="panel" style={{ maxWidth: "none" }}>
-        <div style={{ display: "flex", gap: 10, flexWrap: "wrap", alignItems: "flex-end" }}>
-          <div className="field" style={{ flex: 1, minWidth: 180 }}>
-            <label>Search title</label>
-            <input value={q} onChange={(e) => setQ(e.target.value)} onKeyDown={(e) => e.key === "Enter" && loadListings()} />
-          </div>
-          <div className="field">
-            <label>Status</label>
-            <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}>
-              <option value="">Any</option>
-              {LISTING_STATUSES.map((s) => <option key={s} value={s}>{s}</option>)}
-            </select>
-          </div>
-          <div className="field">
-            <label>Sort by</label>
-            <select
-              value={sortBy}
-              onChange={(e) => { setSortBy(e.target.value); loadListings(e.target.value); }}
-            >
-              <option value="position">Position weight</option>
-              <option value="created_desc">Date created (newest)</option>
-              <option value="created_asc">Date created (oldest)</option>
-              <option value="updated_desc">Last updated (newest)</option>
-              <option value="updated_asc">Last updated (oldest)</option>
-            </select>
-          </div>
-          <div className="field" style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
-            <input type="checkbox" checked={reportedOnly} onChange={(e) => setReportedOnly(e.target.checked)} style={{ width: "auto" }} />
-            <label style={{ margin: 0 }}>Has open reports</label>
-          </div>
-          <button onClick={() => loadListings()}>Search</button>
-        </div>
+    <div className="admin-shell">
+      {/* Mobile top bar */}
+      <div className="admin-topbar">
+        <button
+          className="admin-hamburger"
+          aria-label="Open admin menu"
+          aria-expanded={drawerOpen}
+          onClick={() => setDrawerOpen((o) => !o)}
+        >
+          ☰
+        </button>
+        <span className="admin-topbar-title">Admin · {SECTION_TITLES[section]}</span>
       </div>
 
-      {listingsLoading && <p className="note-light">Loading…</p>}
-      {!listingsLoading && listings.length === 0 && <p className="note">No listings match.</p>}
-      {listings.map((l) => (
-        <div key={l.id} className="panel" style={{ maxWidth: "none", display: "flex", gap: 14 }}>
-          {l.media[0] && (
-            <img src={l.media[0].url} alt="" style={{ width: 100, height: 80, objectFit: "cover", borderRadius: 4, flexShrink: 0 }} />
-          )}
-          <div style={{ flex: 1 }}>
-            <p style={{ margin: "0 0 4px" }}>
-              <b>{l.title}</b> · {l.askingPrice != null ? `Asking J$${l.askingPrice.toLocaleString()}` : "Open to offers"}
-            </p>
-            <p className="note" style={{ margin: "0 0 8px" }}>
-              {l.user.email} · {l.category.name} · status: {l.status}{tierLabel(l)} · 👁 {l.uniqueViews} view{l.uniqueViews === 1 ? "" : "s"}
-              {l.openReportCount > 0 && <> · {l.openReportCount} open report{l.openReportCount === 1 ? "" : "s"}</>}
-              <br />
-              created {new Date(l.createdAt).toLocaleDateString()} · updated {new Date(l.updatedAt).toLocaleDateString()}
-            </p>
-            {l.status === "active" && (
-              <div style={{ display: "flex", gap: 10, flexWrap: "wrap", alignItems: "flex-end", marginBottom: 10 }}>
-                <div className="field" style={{ width: 120, marginBottom: 0 }}>
-                  <label>Position weight</label>
-                  <input
-                    type="number"
-                    min={1}
-                    value={sortDrafts[l.id] ?? String(l.sortOrder)}
-                    onChange={(e) => setSortDrafts((prev) => ({ ...prev, [l.id]: e.target.value }))}
-                  />
-                </div>
-                <button className="secondary" onClick={() => saveSortOrder(l.id)} disabled={actingId === l.id}>
-                  Set position
+      {drawerOpen && <div className="admin-overlay" onClick={() => setDrawerOpen(false)} aria-hidden="true" />}
+
+      {/* Sidebar */}
+      <aside className={`admin-side ${drawerOpen ? "open" : ""}`} aria-label="Admin sections">
+        <div className="admin-side-head">Admin</div>
+        <nav>
+          {NAV.map((item) =>
+            "group" in item ? (
+              <div key={item.group} className="admin-nav-group">
+                <button
+                  className="admin-nav-item admin-nav-grouphead"
+                  aria-expanded={moderationOpen}
+                  onClick={() => setModerationOpen((o) => !o)}
+                >
+                  <span className="admin-nav-ico" aria-hidden="true">{item.icon}</span>
+                  <span>{item.group}</span>
+                  <span className="admin-nav-caret" aria-hidden="true">{moderationOpen ? "▾" : "▸"}</span>
                 </button>
-                <div className="field" style={{ width: 110, marginBottom: 0 }}>
-                  <label>Promo days</label>
-                  <input
-                    type="number"
-                    min={1}
-                    placeholder="default"
-                    value={promoDayDrafts[l.id] ?? ""}
-                    onChange={(e) => setPromoDayDrafts((prev) => ({ ...prev, [l.id]: e.target.value }))}
-                  />
-                </div>
-                <button onClick={() => promote(l.id, "vip")} disabled={actingId === l.id}>Make VIP</button>
-                <button onClick={() => promote(l.id, "top")} disabled={actingId === l.id}>Make Top</button>
-                {l.premiumTier !== "none" && (
-                  <button className="secondary" onClick={() => promote(l.id, "none")} disabled={actingId === l.id}>
-                    Remove promo
-                  </button>
-                )}
+                {moderationOpen &&
+                  item.children.map((c) => (
+                    <button
+                      key={c.key}
+                      className={`admin-nav-item admin-nav-child ${section === c.key ? "active" : ""}`}
+                      aria-current={section === c.key ? "page" : undefined}
+                      onClick={() => go(c.key)}
+                    >
+                      <span className="admin-nav-ico" aria-hidden="true">{c.icon}</span>
+                      <span>{c.label}</span>
+                      {c.key === "reports" && reports.length > 0 && <span className="admin-nav-badge">{reports.length}</span>}
+                      {c.key === "refunds" && refunds.length > 0 && <span className="admin-nav-badge">{refunds.length}</span>}
+                    </button>
+                  ))}
               </div>
-            )}
-            <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
-              {l.status !== "removed" && l.status !== "deleted" && l.status !== "archived" && (
-                <a href={`/listing/${l.id}`} target="_blank" rel="noreferrer">
-                  <button className="secondary">View</button>
-                </a>
-              )}
-              {l.status !== "removed" && l.status !== "deleted" && (
-                <button onClick={() => hideListing(l.id)} disabled={actingId === l.id}>Hide</button>
-              )}
-              {l.status === "removed" && (
-                <button onClick={() => unhideListing(l.id)} disabled={actingId === l.id}>Unhide</button>
-              )}
-              {l.status !== "deleted" && (
-                <button className="secondary" onClick={() => deleteListing(l.id)} disabled={actingId === l.id}>
-                  Delete permanently
-                </button>
-              )}
+            ) : (
+              <button
+                key={item.key}
+                className={`admin-nav-item ${section === item.key ? "active" : ""}`}
+                aria-current={section === item.key ? "page" : undefined}
+                onClick={() => go(item.key)}
+              >
+                <span className="admin-nav-ico" aria-hidden="true">{item.icon}</span>
+                <span>{item.label}</span>
+              </button>
+            )
+          )}
+        </nav>
+        <div className="admin-side-foot note">{me.user.email}</div>
+      </aside>
+
+      {/* Content */}
+      <main className="admin-content">
+        <div className="admin-content-inner">
+          <h1 className="admin-h1">{SECTION_TITLES[section]}</h1>
+          {actionError && <p className="error">{actionError}</p>}
+
+          {section === "overview" && (
+            <div className="admin-stat-grid">
+              <StatCard label="Total listings" value={listingsTotal} onClick={() => go("listings")} />
+              <StatCard label="Total users" value={usersTotal} onClick={() => go("users")} />
+              <StatCard label="Open reports" value={reports.length} onClick={() => go("reports")} highlight={reports.length > 0} />
+              <StatCard label="Refund requests" value={refunds.length} onClick={() => go("refunds")} highlight={refunds.length > 0} />
             </div>
-          </div>
+          )}
+
+          {section === "settings" && (
+            <>
+              {!settings && <p className="note-light">Loading…</p>}
+              {settings && (
+                <div className="panel" style={{ maxWidth: "none" }}>
+                  <div style={{ display: "flex", gap: 14, flexWrap: "wrap", alignItems: "flex-end" }}>
+                    <div className="field" style={{ width: 140 }}>
+                      <label>Free ad days</label>
+                      <input type="number" min={1} value={settings.freeAdDays} onChange={(e) => setSetting("freeAdDays", e.target.value)} />
+                    </div>
+                    <div className="field" style={{ width: 150 }}>
+                      <label>Top Ad price (J$)</label>
+                      <MoneyInput value={String(settings.topAdPriceJmd)} onChange={(v) => setSetting("topAdPriceJmd", v)} />
+                    </div>
+                    <div className="field" style={{ width: 140 }}>
+                      <label>Top Ad days</label>
+                      <input type="number" min={1} value={settings.topAdDays} onChange={(e) => setSetting("topAdDays", e.target.value)} />
+                    </div>
+                    <div className="field" style={{ width: 150 }}>
+                      <label>VIP Ad price (J$)</label>
+                      <MoneyInput value={String(settings.vipAdPriceJmd)} onChange={(v) => setSetting("vipAdPriceJmd", v)} />
+                    </div>
+                    <div className="field" style={{ width: 140 }}>
+                      <label>VIP Ad days</label>
+                      <input type="number" min={1} value={settings.vipAdDays} onChange={(e) => setSetting("vipAdDays", e.target.value)} />
+                    </div>
+                    <div className="field" style={{ width: 170 }}>
+                      <label>Refund window (days)</label>
+                      <input type="number" min={0} value={settings.refundWindowDays} onChange={(e) => setSetting("refundWindowDays", e.target.value)} />
+                    </div>
+                    <div className="field" style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+                      <input
+                        type="checkbox"
+                        checked={settings.signupsEnabled}
+                        onChange={(e) => setSettings((prev) => (prev ? { ...prev, signupsEnabled: e.target.checked } : prev))}
+                        style={{ width: "auto" }}
+                      />
+                      <label style={{ margin: 0 }}>Allow new sign-ups</label>
+                    </div>
+                    <button disabled={settingsBusy} onClick={saveSettings}>{settingsBusy ? "Saving…" : "Save settings"}</button>
+                    {settingsMsg && <span className="note">{settingsMsg}</span>}
+                  </div>
+                  <p className="note" style={{ margin: "8px 0 0" }}>
+                    Position weights: ads with weight 1-10 show as ★ VIP, 11-20 as TOP; anything higher is standard.
+                    Durations above apply when an ad enters a band; manual promotions can override the number of days per ad.
+                    Refund window 0 disables refund requests entirely.
+                  </p>
+                </div>
+              )}
+            </>
+          )}
+
+          {section === "refunds" && (
+            <>
+              {refundsLoading && <p className="note-light">Loading…</p>}
+              {!refundsLoading && refunds.length === 0 && <p className="note">No open refund requests.</p>}
+              {refunds.map((r) => (
+                <div key={r.id} className="panel" style={{ maxWidth: "none" }}>
+                  <div className="payment-row">
+                    <div>
+                      <b>J${r.amountJmd.toLocaleString()}</b> · {r.type.replace(/_/g, " ")}
+                      {r.listing && (
+                        <>
+                          {" — "}
+                          <a href={`/listing/${r.listing.id}`} target="_blank" rel="noreferrer" style={{ textDecoration: "underline" }}>
+                            {r.listing.title}
+                          </a>
+                        </>
+                      )}
+                      <p className="note" style={{ margin: "4px 0 0" }}>
+                        {r.user.name ? `${r.user.name} · ` : ""}{r.user.email}
+                        {" · paid "}{r.completedAt ? new Date(r.completedAt).toLocaleDateString() : "—"}
+                        {" · requested "}{r.refundRequestedAt ? new Date(r.refundRequestedAt).toLocaleDateString() : "—"}
+                      </p>
+                    </div>
+                  </div>
+                  {r.refundReason && <p style={{ margin: "8px 0 0" }}>&ldquo;{r.refundReason}&rdquo;</p>}
+                  <div className="btn-row">
+                    <button onClick={() => resolveRefund(r.id, "approve")} disabled={actingId === r.id}>
+                      {actingId === r.id ? "Working…" : "Approve refund"}
+                    </button>
+                    <button className="secondary" onClick={() => resolveRefund(r.id, "deny")} disabled={actingId === r.id}>
+                      Deny
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </>
+          )}
+
+          {section === "users" && (
+            <>
+              <div className="panel" style={{ maxWidth: "none" }}>
+                <div style={{ display: "flex", gap: 10, flexWrap: "wrap", alignItems: "flex-end" }}>
+                  <div className="field" style={{ flex: 1, minWidth: 220, marginBottom: 0 }}>
+                    <label>Search by email, phone, or name</label>
+                    <input
+                      value={userQ}
+                      onChange={(e) => setUserQ(e.target.value)}
+                      onKeyDown={(e) => e.key === "Enter" && loadUsers({ page: 1 })}
+                      placeholder="e.g. marcia@… or 876…"
+                    />
+                  </div>
+                  <button onClick={() => loadUsers({ page: 1 })}>Search</button>
+                </div>
+              </div>
+
+              {usersLoading && <p className="note-light">Loading…</p>}
+              {!usersLoading && users.length === 0 && <p className="note">No users match.</p>}
+              {users.length > 0 && (
+                <Pagination
+                  page={usersPage}
+                  pageSize={usersPageSize}
+                  total={usersTotal}
+                  label="users"
+                  onPageChange={(p) => loadUsers({ page: p })}
+                  onPageSizeChange={(s) => loadUsers({ page: 1, size: s })}
+                />
+              )}
+              {users.map((u) => (
+                <div key={u.id} className="panel" style={{ maxWidth: "none" }}>
+                  <div className="payment-row">
+                    <div>
+                      <b>{u.email}</b>
+                      {u.userType === "ads_reviewer" && <span className="tag" style={{ marginLeft: 8 }}>REVIEWER</span>}
+                      {u.blockedAt && <span className="tag pay-failed" style={{ marginLeft: 8 }}>BLOCKED</span>}
+                      <p className="note" style={{ margin: "4px 0 0" }}>
+                        {u.name ? `${u.name} · ` : ""}{u.phone ? `${u.phone} · ` : ""}
+                        joined {new Date(u.createdAt).toLocaleDateString()} · {u.listingCount} ad{u.listingCount === 1 ? "" : "s"} · {u.paymentCount} payment{u.paymentCount === 1 ? "" : "s"}
+                        {u.blockedAt && <> · blocked {new Date(u.blockedAt).toLocaleDateString()}</>}
+                      </p>
+                    </div>
+                    <div className="payment-side">
+                      <button className="secondary" onClick={() => toggleReviewer(u)} disabled={actingId === u.id}>
+                        {u.userType === "ads_reviewer" ? "Remove reviewer" : "Make reviewer"}
+                      </button>
+                      <button
+                        className={u.blockedAt ? "secondary" : ""}
+                        onClick={() => toggleUserBlock(u)}
+                        disabled={actingId === u.id}
+                      >
+                        {actingId === u.id ? "Working…" : u.blockedAt ? "Unblock" : "Block"}
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </>
+          )}
+
+          {section === "reports" && (
+            <>
+              {reportsLoading && <p className="note-light">Loading…</p>}
+              {!reportsLoading && reports.length === 0 && <p className="note">No open reports.</p>}
+              {reports.map((r) => (
+                <div key={r.id} className="panel" style={{ maxWidth: "none" }}>
+                  <p style={{ margin: "0 0 4px" }}>
+                    <b>{r.listing.title}</b> · listing status: {r.listing.status}
+                  </p>
+                  <p className="note" style={{ margin: "0 0 8px" }}>
+                    Reported by {r.reporter.email} on {new Date(r.createdAt).toLocaleDateString()}
+                  </p>
+                  <p style={{ margin: "0 0 10px" }}>{r.reason}</p>
+                  <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+                    <a href={`/listing/${r.listing.id}`} target="_blank" rel="noreferrer">
+                      <button className="secondary">View ad</button>
+                    </a>
+                    <button onClick={() => hideListing(r.listing.id)} disabled={actingId === r.listing.id}>
+                      Hide ad
+                    </button>
+                    <button className="secondary" onClick={() => resolveReport(r.id, "dismissed")} disabled={actingId === r.id}>
+                      Dismiss report
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </>
+          )}
+
+          {section === "listings" && (
+            <>
+              <div className="panel" style={{ maxWidth: "none" }}>
+                <div style={{ display: "flex", gap: 10, flexWrap: "wrap", alignItems: "flex-end" }}>
+                  <div className="field" style={{ flex: 1, minWidth: 180 }}>
+                    <label>Search title</label>
+                    <input value={q} onChange={(e) => setQ(e.target.value)} onKeyDown={(e) => e.key === "Enter" && loadListings({ page: 1 })} />
+                  </div>
+                  <div className="field">
+                    <label>Status</label>
+                    <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}>
+                      <option value="">Any</option>
+                      {LISTING_STATUSES.map((s) => <option key={s} value={s}>{s}</option>)}
+                    </select>
+                  </div>
+                  <div className="field">
+                    <label>Sort by</label>
+                    <select
+                      value={sortBy}
+                      onChange={(e) => { setSortBy(e.target.value); loadListings({ sort: e.target.value, page: 1 }); }}
+                    >
+                      <option value="position">Position weight</option>
+                      <option value="created_desc">Date created (newest)</option>
+                      <option value="created_asc">Date created (oldest)</option>
+                      <option value="updated_desc">Last updated (newest)</option>
+                      <option value="updated_asc">Last updated (oldest)</option>
+                    </select>
+                  </div>
+                  <div className="field" style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+                    <input type="checkbox" checked={reportedOnly} onChange={(e) => setReportedOnly(e.target.checked)} style={{ width: "auto" }} />
+                    <label style={{ margin: 0 }}>Has open reports</label>
+                  </div>
+                  <button onClick={() => loadListings({ page: 1 })}>Search</button>
+                </div>
+              </div>
+
+              {listingsLoading && <p className="note-light">Loading…</p>}
+              {!listingsLoading && listings.length === 0 && <p className="note">No listings match.</p>}
+              {listings.length > 0 && (
+                <Pagination
+                  page={listingsPage}
+                  pageSize={listingsPageSize}
+                  total={listingsTotal}
+                  label="ads"
+                  onPageChange={(p) => loadListings({ page: p })}
+                  onPageSizeChange={(s) => loadListings({ page: 1, size: s })}
+                />
+              )}
+              {listings.map((l) => (
+                <div key={l.id} className="panel" style={{ maxWidth: "none", display: "flex", gap: 14 }}>
+                  {l.media[0] && (
+                    <img src={l.media[0].url} alt="" style={{ width: 100, height: 80, objectFit: "cover", borderRadius: 4, flexShrink: 0 }} />
+                  )}
+                  <div style={{ flex: 1 }}>
+                    <p style={{ margin: "0 0 4px" }}>
+                      <b>{l.title}</b> · {l.askingPrice != null ? `Asking J$${l.askingPrice.toLocaleString()}` : "Open to offers"}
+                    </p>
+                    <p className="note" style={{ margin: "0 0 8px" }}>
+                      {l.user.email} · {l.category.name} · status: {l.status}{tierLabel(l)} · 👁 {l.uniqueViews} view{l.uniqueViews === 1 ? "" : "s"}
+                      {l.openReportCount > 0 && <> · {l.openReportCount} open report{l.openReportCount === 1 ? "" : "s"}</>}
+                      <br />
+                      created {new Date(l.createdAt).toLocaleDateString()} · updated {new Date(l.updatedAt).toLocaleDateString()}
+                    </p>
+                    {l.status === "active" && (
+                      <div style={{ display: "flex", gap: 10, flexWrap: "wrap", alignItems: "flex-end", marginBottom: 10 }}>
+                        <div className="field" style={{ width: 120, marginBottom: 0 }}>
+                          <label>Position weight</label>
+                          <input
+                            type="number"
+                            min={1}
+                            value={sortDrafts[l.id] ?? String(l.sortOrder)}
+                            onChange={(e) => setSortDrafts((prev) => ({ ...prev, [l.id]: e.target.value }))}
+                          />
+                        </div>
+                        <button className="secondary" onClick={() => saveSortOrder(l.id)} disabled={actingId === l.id}>
+                          Set position
+                        </button>
+                        <div className="field" style={{ width: 110, marginBottom: 0 }}>
+                          <label>Promo days</label>
+                          <input
+                            type="number"
+                            min={1}
+                            placeholder="default"
+                            value={promoDayDrafts[l.id] ?? ""}
+                            onChange={(e) => setPromoDayDrafts((prev) => ({ ...prev, [l.id]: e.target.value }))}
+                          />
+                        </div>
+                        <button onClick={() => promote(l.id, "vip")} disabled={actingId === l.id}>Make VIP</button>
+                        <button onClick={() => promote(l.id, "top")} disabled={actingId === l.id}>Make Top</button>
+                        {l.premiumTier !== "none" && (
+                          <button className="secondary" onClick={() => promote(l.id, "none")} disabled={actingId === l.id}>
+                            Remove promo
+                          </button>
+                        )}
+                      </div>
+                    )}
+                    <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+                      {l.status !== "removed" && l.status !== "deleted" && l.status !== "archived" && (
+                        <a href={`/listing/${l.id}`} target="_blank" rel="noreferrer">
+                          <button className="secondary">View</button>
+                        </a>
+                      )}
+                      {l.status !== "removed" && l.status !== "deleted" && (
+                        <button onClick={() => hideListing(l.id)} disabled={actingId === l.id}>Hide</button>
+                      )}
+                      {l.status === "removed" && (
+                        <button onClick={() => unhideListing(l.id)} disabled={actingId === l.id}>Unhide</button>
+                      )}
+                      {l.status !== "deleted" && (
+                        <button className="secondary" onClick={() => deleteListing(l.id)} disabled={actingId === l.id}>
+                          Delete permanently
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              ))}
+              {listings.length > 0 && (
+                <Pagination
+                  page={listingsPage}
+                  pageSize={listingsPageSize}
+                  total={listingsTotal}
+                  label="ads"
+                  onPageChange={(p) => loadListings({ page: p })}
+                  onPageSizeChange={(s) => loadListings({ page: 1, size: s })}
+                />
+              )}
+            </>
+          )}
         </div>
-      ))}
+      </main>
     </div>
+  );
+}
+
+function StatCard({ label, value, onClick, highlight }: { label: string; value: number; onClick: () => void; highlight?: boolean }) {
+  return (
+    <button className={`admin-stat ${highlight ? "hot" : ""}`} onClick={onClick}>
+      <span className="admin-stat-value">{value.toLocaleString()}</span>
+      <span className="admin-stat-label">{label}</span>
+    </button>
   );
 }

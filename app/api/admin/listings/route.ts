@@ -24,23 +24,32 @@ export async function GET(req: NextRequest) {
   const reportedOnly = searchParams.get("reported") === "true";
   const sort = SORTS[searchParams.get("sort") ?? "position"] ?? SORTS.position;
 
-  const listings = await withRetry(() =>
-    prisma.listing.findMany({
-      where: {
-        title: q ? { contains: q, mode: "insensitive" } : undefined,
-        status,
-        reports: reportedOnly ? { some: { status: "open" } } : undefined,
-      },
-      include: {
-        media: { orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }], take: 1 },
-        user: { select: { id: true, email: true } },
-        reports: { where: { status: "open" }, select: { id: true } },
-        category: { select: { name: true } },
-        _count: { select: { views: true } },
-      },
-      orderBy: sort.orderBy as never,
-      take: 200,
-    })
+  const page = Math.max(1, Number(searchParams.get("page")) || 1);
+  const pageSize = Math.min(100, Math.max(1, Number(searchParams.get("pageSize")) || 25));
+
+  const where = {
+    title: q ? { contains: q, mode: "insensitive" as const } : undefined,
+    status,
+    reports: reportedOnly ? { some: { status: "open" as const } } : undefined,
+  };
+
+  const [total, listings] = await withRetry(() =>
+    Promise.all([
+      prisma.listing.count({ where }),
+      prisma.listing.findMany({
+        where,
+        include: {
+          media: { orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }], take: 1 },
+          user: { select: { id: true, email: true } },
+          reports: { where: { status: "open" }, select: { id: true } },
+          category: { select: { name: true } },
+          _count: { select: { views: true } },
+        },
+        orderBy: sort.orderBy as never,
+        skip: (page - 1) * pageSize,
+        take: pageSize,
+      }),
+    ])
   );
 
   return NextResponse.json({
@@ -51,5 +60,8 @@ export async function GET(req: NextRequest) {
       reports: undefined,
       _count: undefined,
     })),
+    total,
+    page,
+    pageSize,
   });
 }
