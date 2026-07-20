@@ -4,13 +4,47 @@
 // array with a bumped version and today's date, then bump the "version" field
 // in package.json to match. CURRENT_VERSION (used as the production version
 // badge) is always the first entry's version.
+//
+// AUDIENCE: each change is visible only to viewers at or above its audience
+// tier. A plain string is treated as "public" (everyone). Use an object with
+// an `audience` to scope internal changes:
+//   "public"   — public visitors and advertisers (the default)
+//   "reviewer" — ads reviewers and administrators
+//   "admin"    — administrators only
+// A release with no changes visible to the viewer is hidden entirely.
+
+export type Audience = "public" | "reviewer" | "admin";
+
+// A change is either a public one-liner or a tagged object for internal notes.
+export type Change = string | { text: string; audience: Audience };
 
 export type Release = {
   version: string;
   date: string; // YYYY-MM-DD
   title: string;
-  changes: string[];
+  changes: Change[];
 };
+
+// Higher rank = more restricted. A viewer sees a change when their own level
+// is >= the change's rank.
+export const AUDIENCE_RANK: Record<Audience, number> = {
+  public: 0,
+  reviewer: 1,
+  admin: 2,
+};
+
+export function changeAudience(c: Change): Audience {
+  return typeof c === "string" ? "public" : c.audience;
+}
+
+export function changeText(c: Change): string {
+  return typeof c === "string" ? c : c.text;
+}
+
+// Returns the changes in a release the given viewer level is allowed to see.
+export function visibleChanges(release: Release, viewerLevel: number): Change[] {
+  return release.changes.filter((c) => AUDIENCE_RANK[changeAudience(c)] <= viewerLevel);
+}
 
 export const CHANGELOG: Release[] = [
   {
@@ -18,11 +52,11 @@ export const CHANGELOG: Release[] = [
     date: "2026-07-20",
     title: "Ad review & approval workflow",
     changes: [
-      "New Ads Reviewer role: reviewers (and admins) approve, reject, or request changes on ads from a dedicated /review dashboard.",
       "Every new or edited ad now enters Pending Review and stays hidden from the public until approved.",
       "Advertisers get automatic email notifications at each stage (submitted, approved, rejected, changes requested) and see the status in My Ads.",
-      "Admin dashboard redesigned: fixed sidebar navigation, collapsible sections, and paginated tables (Showing 1–25 of N).",
-      "Separated development and production databases so testing never touches live data.",
+      { audience: "reviewer", text: "New Ads Reviewer role: reviewers (and admins) approve, reject, or request changes on ads from a dedicated /review dashboard." },
+      { audience: "admin", text: "Admin dashboard redesigned: fixed sidebar navigation, collapsible sections, and paginated tables (Showing 1–25 of N)." },
+      { audience: "admin", text: "Separated development and production databases so testing never touches live data." },
     ],
   },
   {
@@ -30,11 +64,11 @@ export const CHANGELOG: Release[] = [
     date: "2026-07-19",
     title: "User management & moderation",
     changes: [
-      "Admins can search users by email/phone/name and block or unblock accounts.",
-      "Blocking a user logs them out everywhere, hides their active ads, and preserves those ads' photos while blocked.",
-      "Admins can turn new sign-ups on or off.",
       "Money fields now format with thousands separators as you type (1,250,000).",
-      "Admins can sort the ads list by date created or last updated.",
+      { audience: "admin", text: "Admins can search users by email/phone/name and block or unblock accounts." },
+      { audience: "admin", text: "Blocking a user logs them out everywhere, hides their active ads, and preserves those ads' photos while blocked." },
+      { audience: "admin", text: "Admins can turn new sign-ups on or off." },
+      { audience: "admin", text: "Admins can sort the ads list by date created or last updated." },
     ],
   },
   {
@@ -43,8 +77,9 @@ export const CHANGELOG: Release[] = [
     title: "Payments & refunds",
     changes: [
       "Advertisers can see their full payment history at /payments.",
-      "Refund requests within an admin-configurable window, with an admin approval queue that refunds via PayPal and reverses the purchased upgrade.",
+      "Request a refund within the allowed window after purchase.",
       "Reliability fixes for the PayPal checkout and capture flow.",
+      { audience: "admin", text: "Admin refund queue with a configurable request window — approve to refund via PayPal and reverse the purchased upgrade." },
     ],
   },
   {
@@ -80,9 +115,10 @@ export const CHANGELOG: Release[] = [
     date: "2026-07-05",
     title: "Premium tiers & sign-in options",
     changes: [
-      "Top and VIP ad placements with badges, admin-set pricing and duration.",
+      "Top and VIP ad placements with badges.",
       "Unique view counts on ads.",
       "Sign in with Google (optional), alongside email one-time codes.",
+      { audience: "admin", text: "Admins set placement pricing and duration for the Top and VIP tiers." },
     ],
   },
   {
@@ -101,7 +137,8 @@ export const CHANGELOG: Release[] = [
     title: "Browse & moderation",
     changes: [
       "Category and parish browsing.",
-      "Admin moderation: report, hide, unhide, and remove ads.",
+      "Report ads you think break the rules.",
+      { audience: "admin", text: "Admin moderation: hide, unhide, and remove ads." },
     ],
   },
   {
