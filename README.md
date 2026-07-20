@@ -98,17 +98,34 @@ still use the name `Listing`, but everything the user reads says "ad".
 cd 2ndlife
 npm install
 cp .env.example .env.local   # then fill in the values, see sections below
-npx prisma db push           # applies the schema to your database
-npm run seed                  # loads parishes + categories
+npm run db:push              # applies the schema to your DEV database
+npm run db:seed              # loads parishes + categories into DEV
 npm run dev
 ```
 
 Visit `http://localhost:3000`.
 
 This repo uses `prisma db push` (schema-driven) rather than a committed
-migration history — run it again after any change to `prisma/schema.prisma`.
-Never point a Prisma **shadow database** at your real database: the shadow DB
-gets reset, which wipes your data.
+migration history — run `npm run db:push` again after any change to
+`prisma/schema.prisma`. Never point a Prisma **shadow database** at your real
+database: the shadow DB gets reset, which wipes your data.
+
+### Dev vs production database
+
+Local development and the live site use **separate databases**, so testing
+never touches real data:
+
+| Where | Reads | Managed with |
+|-------|-------|--------------|
+| `npm run dev`, local scripts | `.env` / `.env.local` → **dev DB** | `npm run db:push`, `npm run db:seed` |
+| Deployed **production** | Vercel Production env → **prod DB** | `npm run db:push:prod`, `npm run db:seed:prod` |
+| Vercel Preview / Development | dev DB | — |
+
+The `:prod` scripts read `.env.production.local` (create it from your production
+connection strings; it's gitignored) and target the live database explicitly.
+Committing and deploying to production never runs a schema push — after a
+`prisma/schema.prisma` change, apply it to prod yourself with
+`npm run db:push:prod`.
 
 While `RESEND_API_KEY` is empty, OTP codes are printed to your terminal
 instead of actually sent — useful for testing the flow with zero email cost.
@@ -125,7 +142,7 @@ instead of actually sent — useful for testing the flow with zero email cost.
    - the **transaction pooler** one (port 6543) goes in `DATABASE_URL` —
      append `?pgbouncer=true&connection_limit=1`
    - the **session pooler** one (port 5432) goes in `DIRECT_URL`
-3. Run `npx prisma db push` against it once, then `npm run seed`.
+3. Run `npm run db:push:prod` against it once, then `npm run db:seed:prod` (these target the production DB via `.env.production.local`).
 
 ### File storage — Cloudflare R2
 1. Sign up at cloudflare.com → R2.
@@ -200,10 +217,9 @@ payment option in the UI.
 6. In Vercel project settings → Domains, add `www.2ndlifejm.net` (plus a
    redirect from the bare `2ndlifejm.net`) and follow the DNS instructions
    shown there.
-7. Run `npx prisma db push` once against your **production** database
-   (from your local machine with `DATABASE_URL` pointed at production, or via
-   a one-off Vercel deployment build step) and `npm run seed` to load parishes
-   and categories into the live database.
+7. Run `npm run db:push:prod` once against your **production** database and
+   `npm run db:seed:prod` to load parishes and categories into it (both read
+   `.env.production.local`).
 8. Switch PayPal to live credentials once you've tested a few real sandbox
    transactions end-to-end.
 
