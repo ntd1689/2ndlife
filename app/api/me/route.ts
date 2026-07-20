@@ -14,5 +14,6 @@ export async function GET() {
     })
   );
   const isAdmin = !!user && getAdminEmails().has(user.email.toLowerCase());
-  return NextResponse.json({ user, isAdmin });
+  const isReviewer = !!user && (isAdmin || user.userType === "ads_reviewer");
+  return NextResponse.json({ user, isAdmin, isReviewer });
 }

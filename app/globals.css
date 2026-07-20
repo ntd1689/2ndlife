@@ -657,6 +657,16 @@ button.md-btn.active { background: var(--teal); color: #fff; }
 }
 .auth-divider::before, .auth-divider::after { content: ""; flex: 1; border-top: 1px solid #e6e0d2; }
 
+/* Review status banner (My Ads) */
+.review-banner {
+  border-radius: 4px; padding: 10px 12px; margin: 4px 0 10px; font-size: 13px;
+  border: 1px solid;
+}
+.review-banner p { font-size: 12.5px; }
+.review-pending { background: #fff4dd; border-color: #f0d896; color: #7a5b16; }
+.review-changes_requested { background: #fff4dd; border-color: #f0d896; color: #7a5b16; }
+.review-rejected { background: #fbeaea; border-color: #e6b3b3; color: #8a2a2a; }
+
 /* Payments */
 .payment-row { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; flex-wrap: wrap; }
 .payment-side { display: flex; align-items: center; gap: 10px; }

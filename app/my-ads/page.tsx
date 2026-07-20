@@ -41,6 +41,8 @@ type Listing = {
   uniqueViews?: number;
   premiumTier: "none" | "top" | "vip";
   premiumUntil: string | null;
+  reviewStatus: "pending" | "approved" | "rejected" | "changes_requested";
+  reviewNote: string | null;
 };
 
 type DraftMedia = {
@@ -591,6 +593,25 @@ export default function MyAdsPage() {
                     {new Date(listing.premiumUntil).toLocaleDateString()}.
                   </p>
                 )}
+
+                {listing.reviewStatus !== "approved" && (
+                  <div className={`review-banner review-${listing.reviewStatus}`}>
+                    {listing.reviewStatus === "pending" && <b>⏳ Pending review</b>}
+                    {listing.reviewStatus === "changes_requested" && <b>✏️ Changes requested</b>}
+                    {listing.reviewStatus === "rejected" && <b>🚫 Not approved</b>}
+                    <p style={{ margin: "4px 0 0" }}>
+                      {listing.reviewStatus === "pending"
+                        ? "Your ad is awaiting reviewer approval and isn't public yet."
+                        : listing.reviewStatus === "changes_requested"
+                          ? "A reviewer asked for changes. Edit and save your ad to resubmit it."
+                          : "This ad wasn't approved. Edit and save it to submit for review again."}
+                    </p>
+                    {listing.reviewNote && (
+                      <p style={{ margin: "6px 0 0" }}><b>Reviewer notes:</b> {listing.reviewNote}</p>
+                    )}
+                  </div>
+                )}
+
                 <MarkdownText text={listing.description} />
                 <p className="mono">
                   {listing.askingPrice != null ? `Asking J$${listing.askingPrice.toLocaleString()}` : "Open to offers"}

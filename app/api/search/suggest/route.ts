@@ -7,7 +7,7 @@ export async function GET(req: NextRequest) {
 
   const matches = await withRetry(() =>
     prisma.listing.findMany({
-      where: { status: "active", title: { contains: q, mode: "insensitive" } },
+      where: { status: "active", reviewStatus: "approved", title: { contains: q, mode: "insensitive" } },
       select: { title: true },
       orderBy: [{ featured: "desc" }, { createdAt: "desc" }],
       take: 6,

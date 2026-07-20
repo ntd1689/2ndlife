@@ -12,7 +12,7 @@ export async function GET() {
 
     const favorites = await withRetry(() =>
       prisma.favorite.findMany({
-        where: { userId, listing: { status: "active" } },
+        where: { userId, listing: { status: "active", reviewStatus: "approved" } },
         orderBy: { createdAt: "desc" },
         include: {
           listing: {

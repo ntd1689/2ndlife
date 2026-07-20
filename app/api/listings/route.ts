@@ -4,6 +4,7 @@ import { prisma, withRetry } from "@/lib/prisma";
 import { getSessionUserId } from "@/lib/auth";
 import { MAX_PHOTOS } from "@/lib/data/categories";
 import { getSettings } from "@/lib/settings";
+import { sendAdPendingEmail } from "@/lib/email";
 
 export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
@@ -16,6 +17,7 @@ export async function GET(req: NextRequest) {
     prisma.listing.findMany({
       where: {
         status: "active",
+        reviewStatus: "approved",
         title: q ? { contains: q, mode: "insensitive" } : undefined,
         parish: parish ? { name: parish } : undefined,
         category: category ? { name: category } : undefined,
@@ -96,6 +98,9 @@ export async function POST(req: NextRequest) {
         plan: data.plan,
         featured: data.featured,
         expiresAt,
+        // New ads enter the moderation queue and stay hidden until approved.
+        reviewStatus: "pending",
+        submittedAt: now,
         media: {
           create: data.mediaUrls.map((m, index) => ({
             type: m.type,
@@ -108,6 +113,9 @@ export async function POST(req: NextRequest) {
       include: { media: { orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }] } },
     })
   );
+
+  const owner = await prisma.user.findUnique({ where: { id: userId }, select: { email: true } });
+  if (owner) await sendAdPendingEmail(owner.email, { id: listing.id, title: listing.title }, false);
 
   return NextResponse.json({ listing });
 }

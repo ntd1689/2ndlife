@@ -37,6 +37,7 @@ type AdminUser = {
   email: string;
   name: string | null;
   phone: string | null;
+  userType: "advertiser" | "ads_reviewer";
   createdAt: string;
   blockedAt: string | null;
   listingCount: number;
@@ -172,6 +173,24 @@ export default function AdminPage() {
       if (res.ok) setUsers(data.users);
     } finally {
       setUsersLoading(false);
+    }
+  }
+
+  async function toggleReviewer(u: AdminUser) {
+    const action = u.userType === "ads_reviewer" ? "remove_reviewer" : "make_reviewer";
+    setActionError("");
+    setActingId(u.id);
+    try {
+      const res = await fetch(`/api/admin/users/${u.id}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) { setActionError(data.error || "Could not update role"); return; }
+      await loadUsers();
+    } finally {
+      setActingId(null);
     }
   }
 
@@ -537,6 +556,7 @@ export default function AdminPage() {
           <div className="payment-row">
             <div>
               <b>{u.email}</b>
+              {u.userType === "ads_reviewer" && <span className="tag" style={{ marginLeft: 8 }}>REVIEWER</span>}
               {u.blockedAt && <span className="tag pay-failed" style={{ marginLeft: 8 }}>BLOCKED</span>}
               <p className="note" style={{ margin: "4px 0 0" }}>
                 {u.name ? `${u.name} · ` : ""}{u.phone ? `${u.phone} · ` : ""}
@@ -545,6 +565,9 @@ export default function AdminPage() {
               </p>
             </div>
             <div className="payment-side">
+              <button className="secondary" onClick={() => toggleReviewer(u)} disabled={actingId === u.id}>
+                {u.userType === "ads_reviewer" ? "Remove reviewer" : "Make reviewer"}
+              </button>
               <button
                 className={u.blockedAt ? "secondary" : ""}
                 onClick={() => toggleUserBlock(u)}

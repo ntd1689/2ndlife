@@ -3,6 +3,8 @@ import { z } from "zod";
 import { createHash } from "crypto";
 import { prisma, withRetry } from "@/lib/prisma";
 import { getSessionUserId } from "@/lib/auth";
+import { getSessionReviewer } from "@/lib/review";
+import { sendAdPendingEmail } from "@/lib/email";
 import { MAX_PHOTOS } from "@/lib/data/categories";
 
 // One ListingView row per unique viewer: logged-in users are keyed by user
@@ -49,6 +51,15 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
     return NextResponse.json({ error: "Not found" }, { status: 404 });
   }
 
+  const viewerId = await getSessionUserId();
+  const isOwner = viewerId === listing.userId;
+
+  // Not-yet-approved ads are visible only to their owner and to reviewers.
+  if (listing.reviewStatus !== "approved" && !isOwner) {
+    const reviewer = await getSessionReviewer();
+    if (!reviewer) return NextResponse.json({ error: "Not found" }, { status: 404 });
+  }
+
   // If the signed-in viewer is the buyer whose offer was accepted, include
   // the seller's contact info so the two can close the deal off-platform.
   let viewer: {
@@ -62,9 +73,9 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
     isFavorited: false,
     isOwner: false,
   };
-  const viewerId = await getSessionUserId();
-  await recordUniqueView(req, id, listing.userId, viewerId);
-  viewer.isOwner = viewerId === listing.userId;
+  // Only count public views of approved ads.
+  if (listing.reviewStatus === "approved") await recordUniqueView(req, id, listing.userId, viewerId);
+  viewer.isOwner = isOwner;
   if (viewerId) {
     const [acceptedOffer, favorite] = await withRetry(() =>
       Promise.all([
@@ -199,6 +210,12 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
           parishId: parish.id,
           categoryId: category.id,
           subcategoryId: subcategory.id,
+          // An edit re-enters the review queue and hides the ad until
+          // re-approved. Clear any prior reviewer note/flag.
+          reviewStatus: "pending",
+          submittedAt: new Date(),
+          reviewNote: null,
+          flaggedForAdmin: false,
         },
       });
 
@@ -249,6 +266,13 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
       });
     })
   );
+
+  const owner = await prisma.user.findUnique({ where: { id: userId }, select: { email: true } });
+  if (owner && updatedListing) {
+    // An edit is a resubmission if the ad had previously been reviewed.
+    const resubmitted = listing.reviewStatus !== "pending";
+    await sendAdPendingEmail(owner.email, { id: updatedListing.id, title: updatedListing.title }, resubmitted);
+  }
 
   return NextResponse.json({ listing: updatedListing });
 }

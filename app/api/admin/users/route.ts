@@ -27,6 +27,7 @@ export async function GET(req: NextRequest) {
         email: true,
         name: true,
         phone: true,
+        userType: true,
         createdAt: true,
         blockedAt: true,
         _count: { select: { listings: true, payments: true } },

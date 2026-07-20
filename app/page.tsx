@@ -19,6 +19,7 @@ export default async function HomePage({
   const listings = await prisma.listing.findMany({
     where: {
       status: "active",
+      reviewStatus: "approved",
       title: params.q ? { contains: params.q, mode: "insensitive" } : undefined,
       parish: params.parish ? { name: params.parish } : undefined,
       category: params.category ? { name: params.category } : undefined,

@@ -19,7 +19,7 @@ export type NavNotification = {
   createdAt: string;
 };
 
-export type NavUser = { email: string; isAdmin: boolean };
+export type NavUser = { email: string; isAdmin: boolean; isReviewer: boolean };
 
 const CATEGORY_ICONS: Record<string, string> = {
   "Electronics & Appliances": "📱",
@@ -342,6 +342,7 @@ export default function MarketplaceNav({
                 <Link href="/payments" role="menuitem">💳 My payments</Link>
                 <Link href="/profile" role="menuitem">⚙️ Account settings</Link>
                 <Link href="/post" role="menuitem">➕ Post an ad</Link>
+                {user.isReviewer && <Link href="/review" role="menuitem">🔎 Ad review</Link>}
                 {user.isAdmin && <Link href="/admin" role="menuitem">🛡️ Admin</Link>}
                 <form action="/api/auth/logout" method="post">
                   <button type="submit" role="menuitem">🚪 Log out</button>
@@ -459,6 +460,7 @@ export default function MarketplaceNav({
                 <Link href="/favorites" onClick={() => setDrawerOpen(false)}>❤️ Favorites</Link>
                 <Link href="/payments" onClick={() => setDrawerOpen(false)}>💳 My payments</Link>
                 <Link href="/profile" onClick={() => setDrawerOpen(false)}>⚙️ Account settings</Link>
+                {user.isReviewer && <Link href="/review" onClick={() => setDrawerOpen(false)}>🔎 Ad review</Link>}
                 {user.isAdmin && <Link href="/admin" onClick={() => setDrawerOpen(false)}>🛡️ Admin</Link>}
                 <form action="/api/auth/logout" method="post">
                   <button type="submit">🚪 Log out</button>

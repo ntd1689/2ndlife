@@ -27,7 +27,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
           where: { id },
           include: { offers: { orderBy: { amount: "desc" }, take: 1 } },
         });
-        if (!listing) throw new ApiError(404, "Not found");
+        if (!listing || listing.reviewStatus !== "approved") throw new ApiError(404, "Not found");
         if (listing.userId === userId) throw new ApiError(400, "You can't make an offer on your own listing");
         if (listing.status !== "active") throw new ApiError(400, "Listing is not active");
         if (listing.offerEndAt && listing.offerEndAt < new Date()) {

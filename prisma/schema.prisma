@@ -59,6 +59,19 @@ enum PaymentStatus {
 
 enum UserType {
   advertiser
+  ads_reviewer
+}
+
+// Moderation state, orthogonal to the active/expired/sold lifecycle in
+// ListingStatus. An ad is publicly visible only when it is both status=active
+// and reviewStatus=approved. Existing rows default to approved so going live
+// with this feature doesn't hide the whole board; new/edited ads are set to
+// pending in code.
+enum ReviewStatus {
+  pending
+  approved
+  rejected
+  changes_requested
 }
 
 enum PremiumTier {
@@ -141,6 +154,15 @@ model Listing {
   featured      Boolean       @default(false)
   status        ListingStatus @default(active)
 
+  // Moderation workflow (see ReviewStatus). Public visibility requires
+  // status=active AND reviewStatus=approved.
+  reviewStatus    ReviewStatus @default(approved)
+  reviewNote      String?      // reviewer's reason/instructions on reject or changes-requested
+  submittedAt     DateTime?    // when the ad last entered the review queue
+  reviewedAt      DateTime?    // when a reviewer/admin last actioned it
+  reviewedById    String?      // the reviewer/admin who last actioned it
+  flaggedForAdmin Boolean      @default(false) // a reviewer escalated this ad for admin attention
+
   // Manual position weight within a category — lower numbers appear first.
   // Positions 1-10 qualify as VIP, 11-20 as Top (see lib/premium.ts).
   sortOrder     Int           @default(1000)
@@ -167,6 +189,7 @@ model Listing {
   @@index([parishId])
   @@index([categoryId, subcategoryId])
   @@index([categoryId, sortOrder])
+  @@index([reviewStatus])
 }
 
 // A user saving a listing to their favorites. One row per user+listing pair.

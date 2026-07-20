@@ -9,18 +9,18 @@ export default async function SiteHeader() {
   const [userRow, categoryRows, spotlightRows] = await Promise.all([
     userId
       ? withRetry(() =>
-          prisma.user.findUnique({ where: { id: userId }, select: { id: true, email: true } })
+          prisma.user.findUnique({ where: { id: userId }, select: { id: true, email: true, userType: true } })
         )
       : Promise.resolve(null),
     withRetry(() =>
       prisma.category.findMany({
         select: {
           name: true,
-          _count: { select: { listings: { where: { status: "active" } } } },
+          _count: { select: { listings: { where: { status: "active", reviewStatus: "approved" } } } },
           subcategories: {
             select: {
               name: true,
-              _count: { select: { listings: { where: { status: "active" } } } },
+              _count: { select: { listings: { where: { status: "active", reviewStatus: "approved" } } } },
             },
           },
         },
@@ -29,7 +29,7 @@ export default async function SiteHeader() {
     // Pool for the mega menu spotlight cards: featured first, then newest
     withRetry(() =>
       prisma.listing.findMany({
-        where: { status: "active" },
+        where: { status: "active", reviewStatus: "approved" },
         orderBy: [{ featured: "desc" }, { createdAt: "desc" }],
         select: {
           id: true,
@@ -97,8 +97,9 @@ export default async function SiteHeader() {
     }));
   }
 
+  const userIsAdmin = !!userRow && getAdminEmails().has(userRow.email.toLowerCase());
   const user: NavUser | null = userRow
-    ? { email: userRow.email, isAdmin: getAdminEmails().has(userRow.email.toLowerCase()) }
+    ? { email: userRow.email, isAdmin: userIsAdmin, isReviewer: userIsAdmin || userRow.userType === "ads_reviewer" }
     : null;
 
   return <MarketplaceNav user={user} categories={categories} notifications={notifications} />;

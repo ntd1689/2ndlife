@@ -423,9 +423,12 @@ export default function PostAdPage() {
 
       {step === "done" && (
         <div className="panel">
-          <h3>Published 🎉</h3>
-          <p>Your ad is live.</p>
-          <button onClick={() => router.push(`/listing/${listingId}`)}>View ad</button>
+          <h3>Submitted for review ✅</h3>
+          <p>
+            Thanks! Your ad is now <b>pending review</b> — our team checks new ads before they go public
+            (usually within 24–48 hours). We've emailed you and will let you know as soon as it's approved.
+          </p>
+          <button onClick={() => router.push("/my-ads")}>Go to My Ads</button>
         </div>
       )}
     </div>

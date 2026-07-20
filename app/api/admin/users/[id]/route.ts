@@ -4,10 +4,11 @@ import { prisma, withRetry } from "@/lib/prisma";
 import { getSessionAdmin } from "@/lib/admin";
 import { getAdminEmails } from "@/lib/env";
 
-const schema = z.object({ action: z.enum(["block", "unblock"]) });
+const schema = z.object({ action: z.enum(["block", "unblock", "make_reviewer", "remove_reviewer"]) });
 
-// Block or unblock an account. A blocked user can't log in, and their
-// existing session stops working immediately (getSessionUserId checks it).
+// Block/unblock an account, or grant/revoke the ads_reviewer role. A blocked
+// user can't log in, and their existing session stops working immediately
+// (getSessionUserId checks it).
 export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const admin = await getSessionAdmin();
   if (!admin) return NextResponse.json({ error: "Not authorized" }, { status: 403 });
@@ -18,6 +19,17 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
 
   const user = await withRetry(() => prisma.user.findUnique({ where: { id } }));
   if (!user) return NextResponse.json({ error: "User not found" }, { status: 404 });
+
+  if (parsed.data.action === "make_reviewer" || parsed.data.action === "remove_reviewer") {
+    const updated = await withRetry(() =>
+      prisma.user.update({
+        where: { id },
+        data: { userType: parsed.data.action === "make_reviewer" ? "ads_reviewer" : "advertiser" },
+        select: { id: true, email: true, userType: true },
+      })
+    );
+    return NextResponse.json({ user: updated });
+  }
 
   if (parsed.data.action === "block") {
     if (user.id === admin.id) {
