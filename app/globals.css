@@ -791,7 +791,45 @@ footer { margin-top: 60px; border-top: 1px solid var(--line); padding: 30px 0 60
 .admin-stat:hover { transform: translateY(-2px); }
 .admin-stat.hot { outline: 2px solid var(--mustard); }
 .admin-stat-value { font-family: 'IBM Plex Mono', monospace; font-size: 30px; font-weight: 700; color: var(--teal); }
+.admin-stat-value.money { font-size: 24px; word-break: break-all; }
 .admin-stat-label { font-size: 13px; color: #6b6b63; }
+.admin-stat.static { cursor: default; }
+.admin-stat.static:hover { transform: none; }
+
+/* Compact data tables used in the payments dashboard */
+.admin-table { width: 100%; border-collapse: collapse; font-size: 14px; }
+.admin-table th {
+  text-align: left; font-size: 12px; text-transform: uppercase; letter-spacing: 0.4px;
+  color: #6b6b63; font-weight: 700; padding: 6px 10px; border-bottom: 2px solid #e6e0d2;
+}
+.admin-table td { padding: 8px 10px; border-bottom: 1px solid #eee6d8; vertical-align: top; }
+.admin-table tr:last-child td { border-bottom: none; }
+.admin-table .note { font-size: 12px; }
+
+/* Analytics dashboard */
+.analytics-cols { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 14px; }
+
+.barlist { display: flex; flex-direction: column; gap: 8px; }
+.barlist-row {
+  display: grid; grid-template-columns: minmax(120px, 34%) 1fr auto; align-items: center; gap: 12px;
+  padding: 3px 4px; border-radius: 4px;
+}
+.barlist-row:hover { background: #f3ede0; }
+.barlist-label { color: var(--ink); font-size: 13.5px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.barlist-sub { white-space: nowrap; }
+.barlist-track { height: 16px; background: #efe8db; border-radius: 4px; overflow: hidden; }
+.barlist-bar { height: 100%; border-radius: 0 4px 4px 0; min-width: 3px; transition: width 300ms ease; }
+.barlist-value { color: var(--ink); font-size: 13px; text-align: right; white-space: nowrap; font-variant-numeric: tabular-nums; }
+
+.chart-wrap { position: relative; width: 100%; }
+.chart-svg { width: 100%; height: auto; display: block; overflow: visible; }
+.chart-tip {
+  position: absolute; top: 0; pointer-events: none; background: var(--ink); color: var(--paper);
+  padding: 6px 9px; border-radius: 5px; font-size: 12px; box-shadow: 0 4px 12px rgba(0,0,0,.28);
+  white-space: nowrap; z-index: 2;
+}
+.chart-tip-x { color: #cfd9d4; font-size: 11px; }
+.chart-tip-y { font-weight: 600; }
 
 /* Pagination */
 .pager {

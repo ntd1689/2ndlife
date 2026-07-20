@@ -3,6 +3,8 @@
 import { useEffect, useState } from "react";
 import MoneyInput from "../components/MoneyInput";
 import Pagination from "../components/Pagination";
+import PaymentsSection from "./PaymentsSection";
+import AnalyticsSection from "./AnalyticsSection";
 
 type Me = { user: { id: string; email: string } | null; isAdmin: boolean };
 
@@ -74,7 +76,7 @@ type Report = {
 
 const LISTING_STATUSES = ["active", "expired", "archived", "sold", "removed", "deleted"];
 
-type SectionKey = "overview" | "listings" | "users" | "reports" | "refunds" | "settings";
+type SectionKey = "overview" | "listings" | "users" | "payments" | "analytics" | "reports" | "refunds" | "settings";
 
 const NAV: Array<
   | { key: SectionKey; label: string; icon: string }
@@ -83,6 +85,8 @@ const NAV: Array<
   { key: "overview", label: "Overview", icon: "📊" },
   { key: "listings", label: "Listings", icon: "📦" },
   { key: "users", label: "Users", icon: "👥" },
+  { key: "payments", label: "Payments", icon: "💰" },
+  { key: "analytics", label: "Analytics", icon: "📈" },
   {
     group: "Moderation",
     icon: "🛡️",
@@ -98,6 +102,8 @@ const SECTION_TITLES: Record<SectionKey, string> = {
   overview: "Overview",
   listings: "Listings",
   users: "Users",
+  payments: "Payments & revenue",
+  analytics: "Ads analytics",
   reports: "Reports",
   refunds: "Refund requests",
   settings: "Marketplace settings",
@@ -582,6 +588,8 @@ export default function AdminPage() {
             <div className="admin-stat-grid">
               <StatCard label="Total listings" value={listingsTotal} onClick={() => go("listings")} />
               <StatCard label="Total users" value={usersTotal} onClick={() => go("users")} />
+              <StatCard label="Payments & revenue" value="View" onClick={() => go("payments")} />
+              <StatCard label="Ads analytics" value="View" onClick={() => go("analytics")} />
               <StatCard label="Open reports" value={reports.length} onClick={() => go("reports")} highlight={reports.length > 0} />
               <StatCard label="Refund requests" value={refunds.length} onClick={() => go("refunds")} highlight={refunds.length > 0} />
             </div>
@@ -736,6 +744,10 @@ export default function AdminPage() {
               ))}
             </>
           )}
+
+          {section === "payments" && <PaymentsSection />}
+
+          {section === "analytics" && <AnalyticsSection />}
 
           {section === "reports" && (
             <>
@@ -901,10 +913,10 @@ export default function AdminPage() {
   );
 }
 
-function StatCard({ label, value, onClick, highlight }: { label: string; value: number; onClick: () => void; highlight?: boolean }) {
+function StatCard({ label, value, onClick, highlight }: { label: string; value: number | string; onClick: () => void; highlight?: boolean }) {
   return (
     <button className={`admin-stat ${highlight ? "hot" : ""}`} onClick={onClick}>
-      <span className="admin-stat-value">{value.toLocaleString()}</span>
+      <span className="admin-stat-value">{typeof value === "number" ? value.toLocaleString() : value}</span>
       <span className="admin-stat-label">{label}</span>
     </button>
   );

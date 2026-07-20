@@ -48,6 +48,15 @@ export function visibleChanges(release: Release, viewerLevel: number): Change[] 
 
 export const CHANGELOG: Release[] = [
   {
+    version: "1.6.0",
+    date: "2026-07-20",
+    title: "Revenue & ads analytics for admins",
+    changes: [
+      { audience: "admin", text: "New Payments dashboard: collected revenue, refunds, and net — broken down by purchase type and provider, with the top-value advertisers and a filterable payment ledger, all scoped to a date range or custom period." },
+      { audience: "admin", text: "New Ads Analytics dashboard with charts: ad views and revenue over time, top-visited ads, and revenue and views broken down by category and parish — filterable by period." },
+    ],
+  },
+  {
     version: "1.5.0",
     date: "2026-07-20",
     title: "Ad review & approval workflow",
