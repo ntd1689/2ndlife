@@ -2,19 +2,49 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { sendOtp } from "@/lib/email";
 import { prisma, withRetry } from "@/lib/prisma";
-import { checkRateLimit } from "@/lib/rate-limit";
+import { checkRateLimit, rateLimit, clientIp } from "@/lib/rate-limit";
 import { getSettings } from "@/lib/settings";
+import { verifyTurnstile } from "@/lib/turnstile";
+import { isDisposableEmail } from "@/lib/disposable-emails";
 
 const schema = z.object({ email: z.string().email() });
 
 export async function POST(req: NextRequest) {
   try {
-    const parsed = schema.safeParse(await req.json());
+    const body = await req.json().catch(() => ({}));
+
+    // Honeypot: a real user never fills this. Pretend success so bots get no
+    // signal, but do nothing.
+    if (typeof body?.honeypot === "string" && body.honeypot.trim()) {
+      return NextResponse.json({ ok: true });
+    }
+
+    const parsed = schema.safeParse(body);
     if (!parsed.success) {
       return NextResponse.json({ error: "Enter a valid email address" }, { status: 400 });
     }
 
     const email = parsed.data.email.toLowerCase().trim();
+    const ip = clientIp(req);
+
+    // Bot challenge before we email anyone or create an account.
+    if (!(await verifyTurnstile(body?.turnstileToken, ip))) {
+      return NextResponse.json({ error: "Please complete the verification and try again." }, { status: 400 });
+    }
+
+    if (isDisposableEmail(email)) {
+      return NextResponse.json({ error: "Please use a permanent email address to sign up." }, { status: 400 });
+    }
+
+    // Per-IP abuse control (durable across serverless instances) so email
+    // rotation can't sidestep the per-email limits below.
+    const ipLimit = await rateLimit(`otp:send:ip:${ip}`, 8, 15 * 60 * 1000);
+    if (!ipLimit.allowed) {
+      return NextResponse.json(
+        { error: "Too many code requests from this network. Please wait before trying again." },
+        { status: 429, headers: { "Retry-After": String(ipLimit.retryAfterSec) } }
+      );
+    }
 
     // Fast path abuse control before touching external providers.
     const localLimit = checkRateLimit(`otp:send:${email}`, 6, 15 * 60 * 1000);

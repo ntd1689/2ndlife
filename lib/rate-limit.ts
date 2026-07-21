@@ -47,3 +47,47 @@ export function checkRateLimit(key: string, max: number, windowMs: number): Rate
     retryAfterSec: Math.max(1, Math.ceil((existing.resetAt - current) / 1000)),
   };
 }
+
+// Best-effort client IP from the proxy headers Vercel sets. Used to key
+// bot/abuse limits by network, not just by (easily rotated) email.
+export function clientIp(req: Request): string {
+  const xff = req.headers.get("x-forwarded-for");
+  if (xff) return xff.split(",")[0]!.trim();
+  return req.headers.get("x-real-ip")?.trim() || "unknown";
+}
+
+// Durable, cross-instance rate limit backed by Upstash Redis (fixed window via
+// INCR + PEXPIRE). Falls back to the in-memory limiter when Upstash isn't
+// configured (local dev) or on any Redis error, so a limiter outage never
+// blocks real traffic. The in-memory limiter is per-serverless-instance and
+// resets on cold start, so use this — not checkRateLimit — for abuse control.
+export async function rateLimit(key: string, max: number, windowMs: number): Promise<RateLimitResult> {
+  const url = process.env.UPSTASH_REDIS_REST_URL?.trim();
+  const token = process.env.UPSTASH_REDIS_REST_TOKEN?.trim();
+  if (!url || !token) return checkRateLimit(key, max, windowMs);
+
+  const windowId = Math.floor(nowMs() / windowMs);
+  const windowKey = `rl:${key}:${windowId}`;
+  try {
+    const res = await fetch(`${url}/pipeline`, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+      body: JSON.stringify([
+        ["INCR", windowKey],
+        ["PEXPIRE", windowKey, windowMs, "NX"],
+      ]),
+      cache: "no-store",
+    });
+    if (!res.ok) return checkRateLimit(key, max, windowMs);
+    const data = (await res.json()) as Array<{ result?: number }>;
+    const count = Number(data?.[0]?.result ?? 0);
+    if (!count) return checkRateLimit(key, max, windowMs);
+    return {
+      allowed: count <= max,
+      remaining: Math.max(0, max - count),
+      retryAfterSec: Math.ceil(windowMs / 1000),
+    };
+  } catch {
+    return checkRateLimit(key, max, windowMs);
+  }
+}

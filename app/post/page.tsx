@@ -5,6 +5,7 @@ import PayPalCheckoutButtons from "../components/PayPalCheckoutButtons";
 import DescriptionEditor from "../components/DescriptionEditor";
 import MoneyInput from "../components/MoneyInput";
 import GoogleSignInButton from "../components/GoogleSignInButton";
+import Turnstile, { Honeypot, turnstileEnabledClient } from "../components/Turnstile";
 import { MAX_PHOTOS } from "@/lib/data/categories";
 import { downscaleImage } from "@/lib/resize-image";
 
@@ -56,6 +57,8 @@ export default function PostAdPage() {
   const [freeAdDays, setFreeAdDays] = useState<number | null>(null);
 
   const [googleEnabled, setGoogleEnabled] = useState(false);
+  const [turnstileToken, setTurnstileToken] = useState("");
+  const [honeypot, setHoneypot] = useState("");
 
   useEffect(() => {
     fetch("/api/settings")
@@ -92,11 +95,12 @@ export default function PostAdPage() {
   async function sendCode() {
     setError("");
     if (!email.includes("@")) { setError("Enter a valid email address"); return; }
+    if (turnstileEnabledClient && !turnstileToken) { setError("Please complete the verification below."); return; }
     try {
       const res = await fetch("/api/auth/send-otp", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email }),
+        body: JSON.stringify({ email, turnstileToken, honeypot }),
       });
       if (!res.ok) { setError("Could not send code"); return; }
       setStep("code");
@@ -221,6 +225,7 @@ export default function PostAdPage() {
           offerDays: offerDays ? Number(offerDays) : undefined,
           plan: "free", featured: false,
           mediaUrls: media,
+          turnstileToken, honeypot,
         }),
       });
       const data = await res.json();
@@ -290,6 +295,8 @@ export default function PostAdPage() {
             <label>Email address</label>
             <input value={email} onChange={(e) => setEmail(e.target.value)} type="email" placeholder="you@example.com" />
           </div>
+          <Honeypot value={honeypot} onChange={setHoneypot} />
+          <Turnstile onToken={setTurnstileToken} />
           <button onClick={sendCode}>Send verification code</button>
         </div>
       )}
@@ -398,6 +405,8 @@ export default function PostAdPage() {
             <input type="checkbox" checked={featured} onChange={(e) => setFeatured(e.target.checked)} style={{ width: "auto" }} />
             <label style={{ margin: 0 }}>Feature at the top of the board</label>
           </div>
+          <Honeypot value={honeypot} onChange={setHoneypot} />
+          <Turnstile onToken={setTurnstileToken} />
           <button disabled={busy} onClick={createListingThenContinue}>
             {busy ? "Publishing…" : plan === "unlimited" || featured ? "Continue to payment" : "Publish"}
           </button>

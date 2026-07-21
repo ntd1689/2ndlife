@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import GoogleSignInButton from "../components/GoogleSignInButton";
+import Turnstile, { Honeypot, turnstileEnabledClient } from "../components/Turnstile";
 
 type Step = "email" | "code";
 
@@ -15,6 +16,8 @@ export default function LoginPage() {
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
   const [googleEnabled, setGoogleEnabled] = useState(false);
+  const [turnstileToken, setTurnstileToken] = useState("");
+  const [honeypot, setHoneypot] = useState("");
 
   useEffect(() => {
     // Surface errors from a failed Google OAuth redirect.
@@ -35,12 +38,17 @@ export default function LoginPage() {
       return;
     }
 
+    if (turnstileEnabledClient && !turnstileToken) {
+      setError("Please complete the verification below.");
+      return;
+    }
+
     setBusy(true);
     try {
       const res = await fetch("/api/auth/send-otp", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email }),
+        body: JSON.stringify({ email, turnstileToken, honeypot }),
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) {
@@ -94,6 +102,8 @@ export default function LoginPage() {
             <label>Email address</label>
             <input value={email} onChange={(e) => setEmail(e.target.value)} type="email" placeholder="you@example.com" />
           </div>
+          <Honeypot value={honeypot} onChange={setHoneypot} />
+          <Turnstile onToken={setTurnstileToken} />
           <button disabled={busy} onClick={sendCode}>{busy ? "Sending…" : "Send login code"}</button>
           <p className="note" style={{ marginTop: 12 }}>
             New to 2ndLife? <Link href="/signup" style={{ textDecoration: "underline" }}>Create an account</Link>

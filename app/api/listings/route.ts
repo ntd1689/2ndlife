@@ -5,6 +5,8 @@ import { getSessionUserId } from "@/lib/auth";
 import { MAX_PHOTOS } from "@/lib/data/categories";
 import { getSettings } from "@/lib/settings";
 import { sendAdPendingEmail } from "@/lib/email";
+import { verifyTurnstile } from "@/lib/turnstile";
+import { rateLimit, clientIp } from "@/lib/rate-limit";
 
 export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
@@ -56,6 +58,26 @@ export async function POST(req: NextRequest) {
   if (!userId) return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
 
   const body = await req.json();
+
+  // Honeypot: silently drop bot submissions that fill the hidden field.
+  if (typeof body?.honeypot === "string" && body.honeypot.trim()) {
+    return NextResponse.json({ error: "Could not publish ad" }, { status: 400 });
+  }
+
+  const ip = clientIp(req);
+  if (!(await verifyTurnstile(body?.turnstileToken, ip))) {
+    return NextResponse.json({ error: "Please complete the verification and try again." }, { status: 400 });
+  }
+
+  // Cap ad creation per network to blunt mass posting even from many accounts.
+  const postLimit = await rateLimit(`listing:create:ip:${ip}`, 12, 60 * 60 * 1000);
+  if (!postLimit.allowed) {
+    return NextResponse.json(
+      { error: "You're posting ads too quickly. Please try again later." },
+      { status: 429, headers: { "Retry-After": String(postLimit.retryAfterSec) } }
+    );
+  }
+
   const parsed = createSchema.safeParse(body);
   if (!parsed.success) {
     return NextResponse.json({ error: parsed.error.issues[0]?.message ?? "Invalid ad details" }, { status: 400 });

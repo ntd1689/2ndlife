@@ -48,6 +48,14 @@ export function visibleChanges(release: Release, viewerLevel: number): Change[] 
 
 export const CHANGELOG: Release[] = [
   {
+    version: "1.8.0",
+    date: "2026-07-20",
+    title: "Bot & abuse protection",
+    changes: [
+      { audience: "admin", text: "Added layered bot protection to login, sign-up, and ad creation: Cloudflare Turnstile challenge, a hidden honeypot, disposable-email blocking, and durable per-IP rate limiting (Upstash). All env-gated — set the TURNSTILE_* and UPSTASH_* keys in Vercel to activate the challenge and cross-instance limits." },
+    ],
+  },
+  {
     version: "1.7.0",
     date: "2026-07-20",
     title: "Contact form & site icon",

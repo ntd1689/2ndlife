@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import GoogleSignInButton from "../components/GoogleSignInButton";
+import Turnstile, { Honeypot, turnstileEnabledClient } from "../components/Turnstile";
 
 type Step = "email" | "code" | "phone";
 
@@ -18,6 +19,8 @@ export default function SignupPage() {
   const [busy, setBusy] = useState(false);
   const [googleEnabled, setGoogleEnabled] = useState(false);
   const [signupsClosed, setSignupsClosed] = useState(false);
+  const [turnstileToken, setTurnstileToken] = useState("");
+  const [honeypot, setHoneypot] = useState("");
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -36,12 +39,16 @@ export default function SignupPage() {
       setError("Enter a valid email address");
       return;
     }
+    if (turnstileEnabledClient && !turnstileToken) {
+      setError("Please complete the verification below.");
+      return;
+    }
     setBusy(true);
     try {
       const res = await fetch("/api/auth/send-otp", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email }),
+        body: JSON.stringify({ email, turnstileToken, honeypot }),
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) {
@@ -151,6 +158,8 @@ export default function SignupPage() {
             <label>Email address</label>
             <input value={email} onChange={(e) => setEmail(e.target.value)} type="email" placeholder="you@example.com" />
           </div>
+          <Honeypot value={honeypot} onChange={setHoneypot} />
+          <Turnstile onToken={setTurnstileToken} />
           <button disabled={busy} onClick={sendCode}>{busy ? "Sending…" : "Send verification code"}</button>
           <p className="note" style={{ marginTop: 12 }}>
             Already have an account? <Link href="/login" style={{ textDecoration: "underline" }}>Log in</Link>
