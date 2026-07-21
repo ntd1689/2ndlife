@@ -123,7 +123,7 @@ export default async function SiteHeader() {
       prisma.payment.count({ where: { status: "refund_requested" } })
     );
     if (refundRequests > 0) {
-      staffAlerts.push({ kind: "refund", count: refundRequests, label: "refund request", href: "/admin" });
+      staffAlerts.push({ kind: "refund", count: refundRequests, label: "refund request", href: "/admin?section=refunds" });
     }
   }
 

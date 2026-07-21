@@ -173,6 +173,13 @@ export default function AdminPage() {
 
   useEffect(() => { loadMe(); }, []);
 
+  // Deep-link support: open a specific tab via ?section=… (e.g. the notification
+  // bell's "refund request" alert links to /admin?section=refunds).
+  useEffect(() => {
+    const param = new URLSearchParams(window.location.search).get("section");
+    if (param && param in SECTION_TITLES) setSection(param as SectionKey);
+  }, []);
+
   async function loadReports() {
     setReportsLoading(true);
     try {
@@ -526,6 +533,9 @@ export default function AdminPage() {
   function go(key: SectionKey) {
     setSection(key);
     setDrawerOpen(false);
+    // Keep the URL in sync so the current tab is bookmarkable / shareable.
+    const url = key === "overview" ? "/admin" : `/admin?section=${key}`;
+    window.history.replaceState(null, "", url);
   }
 
   return (
