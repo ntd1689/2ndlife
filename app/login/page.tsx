@@ -88,7 +88,7 @@ export default function LoginPage() {
 
   return (
     <div className="wrap" style={{ maxWidth: 640 }}>
-      <h1>Advertiser login</h1>
+      <h1>Log in</h1>
       {error && <p className="error">{error}</p>}
       {step === "email" && (
         <div className="panel">
