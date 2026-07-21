@@ -52,6 +52,15 @@ export function getAdminEmails(): Set<string> {
   );
 }
 
+// Where the About-page feedback form delivers messages. Uses FEEDBACK_EMAIL if
+// set, otherwise the first configured admin address. Kept server-side so the
+// contact address is never rendered publicly.
+export function getContactEmail(): string {
+  const explicit = process.env.FEEDBACK_EMAIL?.trim();
+  if (explicit) return explicit;
+  return [...getAdminEmails()][0] || "sifts.ja@gmail.com";
+}
+
 export const env = {
   isProd,
 };

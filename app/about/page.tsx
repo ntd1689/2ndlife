@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { getSettings } from "@/lib/settings";
+import FeedbackForm from "./FeedbackForm";
 
 export const metadata = {
   title: "About 2ndLife — Jamaica's local marketplace",
@@ -76,14 +77,7 @@ export default async function AboutPage() {
 
       <div className="panel" style={{ maxWidth: "none", marginTop: 16 }}>
         <h3>Get in touch</h3>
-        <p>
-          Questions, feedback, or a partnership idea? We'd love to hear from you
-          at{" "}
-          <a href="mailto:sifts.ja@gmail.com" style={{ textDecoration: "underline" }}>
-            sifts.ja@gmail.com
-          </a>
-          .
-        </p>
+        <FeedbackForm />
       </div>
 
       <div style={{ display: "flex", gap: 12, flexWrap: "wrap", marginTop: 22 }}>

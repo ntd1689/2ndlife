@@ -48,6 +48,15 @@ export function visibleChanges(release: Release, viewerLevel: number): Change[] 
 
 export const CHANGELOG: Release[] = [
   {
+    version: "1.7.0",
+    date: "2026-07-20",
+    title: "Contact form & site icon",
+    changes: [
+      "New feedback form on the About page — logged-in users can send us questions, feedback, or partnership ideas, and we'll reply to your account email.",
+      "Added the 2ndLife icon to browser tabs and home-screen bookmarks.",
+    ],
+  },
+  {
     version: "1.6.0",
     date: "2026-07-20",
     title: "Revenue & ads analytics for admins",

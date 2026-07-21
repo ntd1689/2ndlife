@@ -1,4 +1,5 @@
 import { prisma } from "./prisma";
+import { getContactEmail } from "./env";
 
 function generateCode(): string {
   return Math.floor(100000 + Math.random() * 900000).toString();
@@ -182,6 +183,47 @@ export async function sendOfferAcceptedEmail(
 
   if (!res.ok) {
     throw new Error("Failed to send offer-accepted email: " + (await res.text()));
+  }
+}
+
+// Feedback from a logged-in user via the About page. Delivered to the site's
+// contact address with reply-to set to the sender, so a reply goes straight
+// back to them. Throws on failure so the caller can surface an error.
+export async function sendFeedbackEmail(opts: {
+  fromEmail: string;
+  fromName: string | null;
+  topic: string;
+  message: string;
+}) {
+  const to = getContactEmail();
+  const who = opts.fromName ? `${opts.fromName} <${opts.fromEmail}>` : opts.fromEmail;
+  const subject = `2ndLife feedback (${opts.topic}) from ${opts.fromEmail}`;
+  const html = `<p><b>From:</b> ${escapeHtml(who)}</p>
+<p><b>Topic:</b> ${escapeHtml(opts.topic)}</p>
+<p><b>Message:</b><br>${escapeHtml(opts.message).replace(/\n/g, "<br>")}</p>`;
+
+  if (!process.env.RESEND_API_KEY) {
+    console.log(`[DEV EMAIL] feedback -> ${to} from ${opts.fromEmail} [${opts.topic}]: ${opts.message}`);
+    return;
+  }
+
+  const res = await fetch("https://api.resend.com/emails", {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${process.env.RESEND_API_KEY}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      from: process.env.RESEND_FROM_EMAIL || "2ndLife <onboarding@resend.dev>",
+      to,
+      reply_to: opts.fromEmail,
+      subject,
+      html,
+    }),
+  });
+
+  if (!res.ok) {
+    throw new Error("Failed to send feedback email: " + (await res.text()));
   }
 }
 
