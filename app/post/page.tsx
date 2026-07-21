@@ -5,7 +5,8 @@ import PayPalCheckoutButtons from "../components/PayPalCheckoutButtons";
 import DescriptionEditor from "../components/DescriptionEditor";
 import MoneyInput from "../components/MoneyInput";
 import GoogleSignInButton from "../components/GoogleSignInButton";
-import Turnstile, { Honeypot, turnstileEnabledClient } from "../components/Turnstile";
+import Turnstile, { Honeypot } from "../components/Turnstile";
+import { useOtpEmail } from "../components/useOtpEmail";
 import { MAX_PHOTOS } from "@/lib/data/categories";
 import { downscaleImage } from "@/lib/resize-image";
 
@@ -31,12 +32,12 @@ type Step = "email" | "code" | "phone" | "details" | "plan" | "pay" | "done";
 
 export default function PostAdPage() {
   const router = useRouter();
+  const otp = useOtpEmail();
   const [step, setStep] = useState<Step>("email");
   const [checkingSession, setCheckingSession] = useState(true);
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
 
-  const [email, setEmail] = useState("");
   const [code, setCode] = useState("");
   const [phone, setPhone] = useState("");
 
@@ -57,8 +58,6 @@ export default function PostAdPage() {
   const [freeAdDays, setFreeAdDays] = useState<number | null>(null);
 
   const [googleEnabled, setGoogleEnabled] = useState(false);
-  const [turnstileToken, setTurnstileToken] = useState("");
-  const [honeypot, setHoneypot] = useState("");
 
   useEffect(() => {
     fetch("/api/settings")
@@ -76,7 +75,7 @@ export default function PostAdPage() {
         if (!res.ok) return;
         const data = await res.json();
         if (cancelled || !data.user) return;
-        setEmail(data.user.email);
+        otp.setEmail(data.user.email);
         if (data.user.phone) {
           setPhone(data.user.phone);
           setStep("details");
@@ -92,21 +91,20 @@ export default function PostAdPage() {
     return () => { cancelled = true; };
   }, []);
 
-  async function sendCode() {
+  async function requestCode(isResend: boolean) {
     setError("");
-    if (!email.includes("@")) { setError("Enter a valid email address"); return; }
-    if (turnstileEnabledClient && !turnstileToken) { setError("Please complete the verification below."); return; }
-    try {
-      const res = await fetch("/api/auth/send-otp", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, turnstileToken, honeypot }),
-      });
-      if (!res.ok) { setError("Could not send code"); return; }
-      setStep("code");
-    } catch {
-      setError("Network issue while sending code. Check your connection and try again.");
-    }
+    setBusy(true);
+    const err = await otp.sendOtp(isResend);
+    setBusy(false);
+    if (err) { setError(err); return; }
+    setStep("code");
+  }
+
+  function changeEmail() {
+    setStep("email");
+    setCode("");
+    setError("");
+    otp.resetForEmailChange();
   }
 
   async function verifyCode() {
@@ -115,7 +113,7 @@ export default function PostAdPage() {
       const res = await fetch("/api/auth/verify-otp", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, code }),
+        body: JSON.stringify({ email: otp.email, code }),
       });
       const data = await res.json();
       if (!res.ok) { setError(data.error || "Invalid code"); return; }
@@ -225,7 +223,7 @@ export default function PostAdPage() {
           offerDays: offerDays ? Number(offerDays) : undefined,
           plan: "free", featured: false,
           mediaUrls: media,
-          turnstileToken, honeypot,
+          turnstileToken: otp.turnstileToken, honeypot: otp.honeypot,
         }),
       });
       const data = await res.json();
@@ -293,21 +291,46 @@ export default function PostAdPage() {
           <div className="demo-note">We'll email you a one-time code to verify your account — no phone or SMS needed to sign up.</div>
           <div className="field">
             <label>Email address</label>
-            <input value={email} onChange={(e) => setEmail(e.target.value)} type="email" placeholder="you@example.com" />
+            <input value={otp.email} onChange={(e) => otp.setEmail(e.target.value)} type="email" placeholder="you@example.com" />
           </div>
-          <Honeypot value={honeypot} onChange={setHoneypot} />
-          <Turnstile onToken={setTurnstileToken} />
-          <button onClick={sendCode}>Send verification code</button>
+          <div className="field" style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+            <input
+              id="remember-email"
+              type="checkbox"
+              checked={otp.remember}
+              onChange={(e) => otp.setRemember(e.target.checked)}
+              style={{ width: "auto" }}
+            />
+            <label htmlFor="remember-email" style={{ margin: 0 }}>Remember my email on this device</label>
+          </div>
+          <Honeypot value={otp.honeypot} onChange={otp.setHoneypot} />
+          <Turnstile key={otp.turnstileKey} onToken={otp.setTurnstileToken} />
+          <button disabled={busy} onClick={() => requestCode(false)}>{busy ? "Sending…" : "Send verification code"}</button>
         </div>
       )}
 
       {step === "code" && (
         <div className="panel">
+          <p className="note" style={{ marginTop: 0 }}>
+            We sent a 6-digit code to <b>{otp.email}</b>.
+          </p>
           <div className="field">
             <label>Enter the 6-digit code we emailed you</label>
-            <input value={code} onChange={(e) => setCode(e.target.value)} maxLength={6} />
+            <input value={code} onChange={(e) => setCode(e.target.value)} maxLength={6} inputMode="numeric" autoFocus />
           </div>
-          <button onClick={verifyCode}>Verify &amp; continue</button>
+          {otp.resendMsg && <p className="note" style={{ color: "var(--teal-light)" }}>{otp.resendMsg}</p>}
+          <button disabled={busy} onClick={verifyCode}>{busy ? "Verifying…" : "Verify & continue"}</button>
+          <div className="btn-row" style={{ marginTop: 12 }}>
+            <button type="button" className="secondary" disabled={busy || otp.resendCooldown > 0} onClick={() => requestCode(true)}>
+              {otp.resendCooldown > 0 ? `Resend code in ${otp.resendCooldown}s` : "Resend code"}
+            </button>
+            <button type="button" className="secondary" disabled={busy} onClick={changeEmail}>
+              ← Change email
+            </button>
+          </div>
+          {/* Kept mounted so a resend has a fresh Turnstile token. */}
+          <Honeypot value={otp.honeypot} onChange={otp.setHoneypot} />
+          <Turnstile key={otp.turnstileKey} onToken={otp.setTurnstileToken} />
         </div>
       )}
 
@@ -405,8 +428,8 @@ export default function PostAdPage() {
             <input type="checkbox" checked={featured} onChange={(e) => setFeatured(e.target.checked)} style={{ width: "auto" }} />
             <label style={{ margin: 0 }}>Feature at the top of the board</label>
           </div>
-          <Honeypot value={honeypot} onChange={setHoneypot} />
-          <Turnstile onToken={setTurnstileToken} />
+          <Honeypot value={otp.honeypot} onChange={otp.setHoneypot} />
+          <Turnstile key={otp.turnstileKey} onToken={otp.setTurnstileToken} />
           <button disabled={busy} onClick={createListingThenContinue}>
             {busy ? "Publishing…" : plan === "unlimited" || featured ? "Continue to payment" : "Publish"}
           </button>
