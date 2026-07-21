@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import PushToggle from "../components/PushToggle";
 
 type Me = {
   email: string;
@@ -127,6 +128,11 @@ export default function ProfilePage() {
 
         <button disabled={saving} onClick={save}>{saving ? "Saving…" : "Save changes"}</button>
         {saved && !error && <p className="note" style={{ marginTop: 8 }}>Saved ✓</p>}
+      </div>
+
+      <div className="panel" style={{ marginTop: 16 }}>
+        <h3 style={{ marginTop: 0 }}>Push notifications</h3>
+        <PushToggle />
       </div>
     </div>
   );

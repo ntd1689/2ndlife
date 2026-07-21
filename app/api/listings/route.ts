@@ -7,6 +7,7 @@ import { getSettings } from "@/lib/settings";
 import { sendAdPendingEmail } from "@/lib/email";
 import { verifyTurnstile } from "@/lib/turnstile";
 import { rateLimit, clientIp } from "@/lib/rate-limit";
+import { sendPushToUsers, getReviewerUserIds } from "@/lib/push";
 
 export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
@@ -138,6 +139,14 @@ export async function POST(req: NextRequest) {
 
   const owner = await prisma.user.findUnique({ where: { id: userId }, select: { email: true } });
   if (owner) await sendAdPendingEmail(owner.email, { id: listing.id, title: listing.title }, false);
+
+  // Alert reviewers/admins that a new ad is waiting in the queue (best-effort).
+  await sendPushToUsers(await getReviewerUserIds(), {
+    title: "New ad to review",
+    body: listing.title,
+    url: "/review",
+    tag: "review-queue",
+  });
 
   return NextResponse.json({ listing });
 }

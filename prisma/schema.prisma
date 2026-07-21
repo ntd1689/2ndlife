@@ -97,6 +97,22 @@ model User {
   payments      Payment[]
   reports       Report[]
   favorites     Favorite[]
+  pushSubscriptions PushSubscription[]
+}
+
+// Web Push subscriptions (one per browser/device) for in-app push notifications.
+// Keyed by the browser-provided endpoint; p256dh/auth are the encryption keys.
+model PushSubscription {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  endpoint  String   @unique
+  p256dh    String
+  auth      String
+  userAgent String?
+  createdAt DateTime @default(now())
+
+  @@index([userId])
 }
 
 // Short-lived OTP codes for email verification (sent via Resend, no SMS cost)

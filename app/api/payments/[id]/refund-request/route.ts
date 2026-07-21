@@ -3,6 +3,7 @@ import { z } from "zod";
 import { prisma, withRetry } from "@/lib/prisma";
 import { getSessionUserId } from "@/lib/auth";
 import { getSettings } from "@/lib/settings";
+import { sendPushToUsers, getAdminUserIds } from "@/lib/push";
 
 const schema = z.object({
   reason: z.string().trim().min(5, "Tell us briefly why you want a refund (at least 5 characters)").max(1000),
@@ -57,6 +58,14 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   if (updated.count === 0) {
     return NextResponse.json({ error: "This payment can no longer be refunded" }, { status: 409 });
   }
+
+  // Alert admins of the new refund request (best-effort).
+  await sendPushToUsers(await getAdminUserIds(), {
+    title: "New refund request",
+    body: `J$${payment.amountJmd.toLocaleString()} — ${payment.type.replace(/_/g, " ")}`,
+    url: "/admin?section=refunds",
+    tag: "refund-queue",
+  });
 
   const fresh = await withRetry(() => prisma.payment.findUnique({ where: { id } }));
   return NextResponse.json({ payment: fresh });

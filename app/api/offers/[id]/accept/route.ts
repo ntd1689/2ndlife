@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma, withRetry } from "@/lib/prisma";
 import { getSessionUserId } from "@/lib/auth";
 import { sendOfferAcceptedEmail } from "@/lib/email";
+import { sendPushToUser } from "@/lib/push";
 
 export async function POST(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -58,6 +59,14 @@ export async function POST(_req: NextRequest, { params }: { params: Promise<{ id
       console.error("Failed to send offer-accepted email:", e instanceof Error ? e.message : e);
     }
   }
+
+  // Push the winning buyer (best-effort).
+  await sendPushToUser(offer.buyerId, {
+    title: "Your offer was accepted 🎉",
+    body: `J$${offer.amount.toLocaleString()} — ${offer.listing.title}`,
+    url: `/listing/${offer.listing.id}`,
+    tag: `offer-accepted-${offer.listing.id}`,
+  });
 
   return NextResponse.json({ ok: true, offer: accepted });
 }

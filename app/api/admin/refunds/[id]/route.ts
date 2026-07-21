@@ -4,6 +4,7 @@ import { prisma, withRetry } from "@/lib/prisma";
 import { getSessionAdmin } from "@/lib/admin";
 import { refundPaypalOrder } from "@/lib/payments/paypal";
 import { revertPaymentEffects } from "@/lib/payments/effects";
+import { sendPushToUser } from "@/lib/push";
 
 const schema = z.object({ action: z.enum(["approve", "deny"]) });
 
@@ -29,6 +30,12 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     const updated = await withRetry(() =>
       prisma.payment.update({ where: { id }, data: { status: "completed" } })
     );
+    await sendPushToUser(payment.userId, {
+      title: "Refund request declined",
+      body: `Your J$${payment.amountJmd.toLocaleString()} refund request wasn't approved.`,
+      url: "/payments",
+      tag: `refund-${payment.id}`,
+    });
     return NextResponse.json({ payment: updated });
   }
 
@@ -60,6 +67,13 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
       { timeout: 15000 }
     )
   );
+
+  await sendPushToUser(payment.userId, {
+    title: "Refund approved ✅",
+    body: `J$${payment.amountJmd.toLocaleString()} has been refunded to you.`,
+    url: "/payments",
+    tag: `refund-${payment.id}`,
+  });
 
   return NextResponse.json({ payment: updated });
 }

@@ -29,3 +29,38 @@ self.addEventListener("fetch", (event) => {
     event.respondWith(fetch(req).catch(() => caches.match(OFFLINE_URL)));
   }
 });
+
+// Web Push: show the notification the server sent.
+self.addEventListener("push", (event) => {
+  let data = {};
+  try { data = event.data ? event.data.json() : {}; } catch (_) { /* non-JSON */ }
+  const title = data.title || "2ndLife";
+  event.waitUntil(
+    self.registration.showNotification(title, {
+      body: data.body || "",
+      icon: "/icon-192.png",
+      badge: "/icon-192.png",
+      tag: data.tag,
+      data: { url: data.url || "/" },
+    })
+  );
+});
+
+// Focus an existing tab (or open one) at the notification's target URL.
+self.addEventListener("notificationclick", (event) => {
+  event.notification.close();
+  const url = (event.notification.data && event.notification.data.url) || "/";
+  event.waitUntil(
+    self.clients.matchAll({ type: "window", includeUncontrolled: true }).then((wins) => {
+      for (const w of wins) {
+        if (w.url.includes(url) && "focus" in w) return w.focus();
+      }
+      if (wins.length && "focus" in wins[0]) {
+        wins[0].focus();
+        if ("navigate" in wins[0]) return wins[0].navigate(url);
+        return;
+      }
+      return self.clients.openWindow(url);
+    })
+  );
+});

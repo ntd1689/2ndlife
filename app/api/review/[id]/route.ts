@@ -7,6 +7,7 @@ import {
   sendAdRejectedEmail,
   sendAdChangesRequestedEmail,
 } from "@/lib/email";
+import { sendPushToUser } from "@/lib/push";
 
 const schema = z
   .object({
@@ -69,9 +70,16 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   );
 
   // Notify the advertiser of the decision (best-effort — never fails the action).
-  if (action === "approve") await sendAdApprovedEmail(listing.user.email, ad);
-  else if (action === "reject") await sendAdRejectedEmail(listing.user.email, ad, note ?? null);
-  else await sendAdChangesRequestedEmail(listing.user.email, ad, note ?? null);
+  if (action === "approve") {
+    await sendAdApprovedEmail(listing.user.email, ad);
+    await sendPushToUser(listing.userId, { title: "Your ad was approved ✅", body: `"${listing.title}" is now live.`, url: `/listing/${listing.id}`, tag: `ad-${listing.id}` });
+  } else if (action === "reject") {
+    await sendAdRejectedEmail(listing.user.email, ad, note ?? null);
+    await sendPushToUser(listing.userId, { title: "Your ad wasn't approved", body: `"${listing.title}" — tap for details.`, url: "/my-ads", tag: `ad-${listing.id}` });
+  } else {
+    await sendAdChangesRequestedEmail(listing.user.email, ad, note ?? null);
+    await sendPushToUser(listing.userId, { title: "Changes requested on your ad", body: `Please update "${listing.title}".`, url: "/my-ads", tag: `ad-${listing.id}` });
+  }
 
   return NextResponse.json({ listing: updated });
 }

@@ -5,6 +5,7 @@ import { prisma, withRetry } from "@/lib/prisma";
 import { getSessionUserId } from "@/lib/auth";
 import { getSessionReviewer } from "@/lib/review";
 import { sendAdPendingEmail } from "@/lib/email";
+import { sendPushToUsers, getReviewerUserIds } from "@/lib/push";
 import { MAX_PHOTOS } from "@/lib/data/categories";
 
 // One ListingView row per unique viewer: logged-in users are keyed by user
@@ -272,6 +273,13 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     // An edit is a resubmission if the ad had previously been reviewed.
     const resubmitted = listing.reviewStatus !== "pending";
     await sendAdPendingEmail(owner.email, { id: updatedListing.id, title: updatedListing.title }, resubmitted);
+    // The edited ad re-enters the review queue — alert reviewers/admins.
+    await sendPushToUsers(await getReviewerUserIds(), {
+      title: "Ad edited — needs review",
+      body: updatedListing.title,
+      url: "/review",
+      tag: "review-queue",
+    });
   }
 
   return NextResponse.json({ listing: updatedListing });

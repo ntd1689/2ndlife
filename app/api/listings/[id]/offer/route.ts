@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { prisma } from "@/lib/prisma";
 import { getSessionUserId } from "@/lib/auth";
+import { sendPushToUser } from "@/lib/push";
 
 const schema = z.object({ amount: z.number().int().positive() });
 
@@ -21,7 +22,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   const { amount } = parsed.data;
 
   try {
-    const offer = await prisma.$transaction(
+    const result = await prisma.$transaction(
       async (tx) => {
         const listing = await tx.listing.findUnique({
           where: { id },
@@ -39,14 +40,23 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
           throw new ApiError(400, `Your offer must be more than the current highest (J$${currentHigh.toLocaleString()})`);
         }
 
-        return tx.offer.create({
+        const created = await tx.offer.create({
           data: { listingId: listing.id, buyerId: userId, amount },
         });
+        return { offer: created, ownerId: listing.userId, title: listing.title };
       },
       { isolationLevel: "Serializable" }
     );
 
-    return NextResponse.json({ offer });
+    // Notify the seller of the new offer (best-effort).
+    await sendPushToUser(result.ownerId, {
+      title: "New offer on your ad",
+      body: `J$${amount.toLocaleString()} — ${result.title}`,
+      url: "/my-ads",
+      tag: `offer-${result.offer.listingId}`,
+    });
+
+    return NextResponse.json({ offer: result.offer });
   } catch (error) {
     if (error instanceof ApiError) {
       return NextResponse.json({ error: error.message }, { status: error.status });
