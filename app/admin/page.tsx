@@ -153,6 +153,11 @@ export default function AdminPage() {
   const [settingsBusy, setSettingsBusy] = useState(false);
   const [settingsMsg, setSettingsMsg] = useState("");
 
+  const [health, setHealth] = useState<{
+    redis: { configured: boolean; mode: "redis" | "memory"; connected: boolean; latencyMs: number | null; error?: string };
+    turnstile: { configured: boolean };
+  } | null>(null);
+
   const [sortDrafts, setSortDrafts] = useState<Record<string, string>>({});
   const [promoDayDrafts, setPromoDayDrafts] = useState<Record<string, string>>({});
 
@@ -236,6 +241,7 @@ export default function AdminPage() {
       loadSettings();
       loadRefunds();
       loadUsers();
+      loadHealth();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [me?.isAdmin]);
@@ -310,6 +316,14 @@ export default function AdminPage() {
     const res = await fetch("/api/admin/settings");
     const data = await res.json();
     if (res.ok) setSettings(data.settings);
+  }
+
+  async function loadHealth() {
+    try {
+      const res = await fetch("/api/admin/health");
+      const data = await res.json();
+      if (res.ok) setHealth(data);
+    } catch { /* leave health null */ }
   }
 
   async function saveSettings() {
@@ -644,6 +658,39 @@ export default function AdminPage() {
                   </p>
                 </div>
               )}
+
+              <div className="panel" style={{ maxWidth: "none", marginTop: 16 }}>
+                <h3 style={{ marginTop: 0 }}>Abuse protection</h3>
+                {!health && <p className="note-light" style={{ margin: 0 }}>Checking…</p>}
+                {health && (
+                  <div style={{ display: "flex", gap: 18, flexWrap: "wrap", alignItems: "center" }}>
+                    <span>
+                      <b>Rate limiter:</b>{" "}
+                      {health.redis.mode === "redis" ? (
+                        <span className="tag pay-completed">
+                          Redis connected{health.redis.latencyMs != null ? ` · ${health.redis.latencyMs}ms` : ""}
+                        </span>
+                      ) : (
+                        <span className="tag pay-refund_requested">
+                          In-memory fallback{health.redis.configured ? " (Redis unreachable)" : " (Redis not configured)"}
+                        </span>
+                      )}
+                    </span>
+                    <span>
+                      <b>Bot challenge:</b>{" "}
+                      {health.turnstile.configured ? (
+                        <span className="tag pay-completed">Turnstile on</span>
+                      ) : (
+                        <span className="tag pay-refund_requested">Off (not configured)</span>
+                      )}
+                    </span>
+                    <button className="secondary" onClick={loadHealth}>Recheck</button>
+                  </div>
+                )}
+                {health?.redis.error && (
+                  <p className="note" style={{ margin: "8px 0 0" }}>Redis error: {health.redis.error}</p>
+                )}
+              </div>
             </>
           )}
 

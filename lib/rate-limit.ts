@@ -56,6 +56,42 @@ export function clientIp(req: Request): string {
   return req.headers.get("x-real-ip")?.trim() || "unknown";
 }
 
+// Reports what the durable rate limiter is actually doing: "redis" when Upstash
+// is configured and reachable (PING -> PONG), else "memory" (the in-memory
+// fallback). Used by the admin health check.
+export async function redisHealth(): Promise<{
+  configured: boolean;
+  mode: "redis" | "memory";
+  connected: boolean;
+  latencyMs: number | null;
+  error?: string;
+}> {
+  const url = process.env.UPSTASH_REDIS_REST_URL?.trim();
+  const token = process.env.UPSTASH_REDIS_REST_TOKEN?.trim();
+  if (!url || !token) return { configured: false, mode: "memory", connected: false, latencyMs: null };
+
+  const started = nowMs();
+  try {
+    const res = await fetch(`${url}/ping`, {
+      headers: { Authorization: `Bearer ${token}` },
+      cache: "no-store",
+    });
+    const latencyMs = nowMs() - started;
+    if (!res.ok) return { configured: true, mode: "memory", connected: false, latencyMs, error: `HTTP ${res.status}` };
+    const data = (await res.json()) as { result?: string };
+    const connected = data?.result === "PONG";
+    return { configured: true, mode: connected ? "redis" : "memory", connected, latencyMs };
+  } catch (err) {
+    return {
+      configured: true,
+      mode: "memory",
+      connected: false,
+      latencyMs: nowMs() - started,
+      error: err instanceof Error ? err.message : "Unknown error",
+    };
+  }
+}
+
 // Durable, cross-instance rate limit backed by Upstash Redis (fixed window via
 // INCR + PEXPIRE). Falls back to the in-memory limiter when Upstash isn't
 // configured (local dev) or on any Redis error, so a limiter outage never
