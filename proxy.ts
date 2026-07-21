@@ -19,10 +19,13 @@ function securityHeaders(req: NextRequest, res: NextResponse) {
 
   // React/Turbopack dev mode needs 'unsafe-eval'; production never uses eval,
   // so it stays out of the CSP there.
+  // Cloudflare Turnstile (bot challenge) loads its script and renders its widget
+  // in an iframe from challenges.cloudflare.com, so it must be allowlisted in
+  // script-src and frame-src or the CSP blocks the challenge entirely.
   const scriptSrc =
     process.env.NODE_ENV === "development"
-      ? "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://www.paypal.com https://www.sandbox.paypal.com"
-      : "script-src 'self' 'unsafe-inline' https://www.paypal.com https://www.sandbox.paypal.com";
+      ? "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://www.paypal.com https://www.sandbox.paypal.com https://challenges.cloudflare.com"
+      : "script-src 'self' 'unsafe-inline' https://www.paypal.com https://www.sandbox.paypal.com https://challenges.cloudflare.com";
 
   const csp = [
     "default-src 'self'",
@@ -31,7 +34,7 @@ function securityHeaders(req: NextRequest, res: NextResponse) {
     "style-src 'self' 'unsafe-inline' https:",
     scriptSrc,
     "connect-src 'self' https:",
-    "frame-src 'self' https://www.paypal.com https://www.sandbox.paypal.com",
+    "frame-src 'self' https://www.paypal.com https://www.sandbox.paypal.com https://challenges.cloudflare.com",
     "base-uri 'self'",
     "form-action 'self'",
     "frame-ancestors 'none'",
