@@ -35,10 +35,13 @@ export async function POST(req: NextRequest) {
   const user = await withRetry(() =>
     prisma.user.findUnique({
       where: { email },
-      select: { id: true, userType: true, blockedAt: true },
+      select: { id: true, blockedAt: true },
     })
   );
-  if (!user || user.userType !== "advertiser") {
+  // Any existing account may log in here — advertisers, and ads_reviewers who
+  // also need a session to reach /review. Only a genuinely missing account is
+  // told to sign up (this matches verify-otp, which has no userType gate).
+  if (!user) {
     return NextResponse.json(
       { error: "No account found for this email. Please sign up first." },
       { status: 403 }
