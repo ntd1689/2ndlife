@@ -1,7 +1,7 @@
 import { getSessionUserId } from "@/lib/auth";
 import { prisma, withRetry } from "@/lib/prisma";
 import { getAdminEmails } from "@/lib/env";
-import MarketplaceNav, { NavCategory, NavNotification, NavUser } from "./MarketplaceNav";
+import MarketplaceNav, { NavCategory, NavNotification, NavUser, StaffAlert } from "./MarketplaceNav";
 
 export default async function SiteHeader() {
   const userId = await getSessionUserId();
@@ -102,5 +102,30 @@ export default async function SiteHeader() {
     ? { email: userRow.email, isAdmin: userIsAdmin, isReviewer: userIsAdmin || userRow.userType === "ads_reviewer" }
     : null;
 
-  return <MarketplaceNav user={user} categories={categories} notifications={notifications} />;
+  // In-app staff alerts (no email): reviewers/admins see ads awaiting review;
+  // admins additionally see pending refund requests.
+  const staffAlerts: StaffAlert[] = [];
+  if (user?.isReviewer) {
+    const pendingReview = await withRetry(() =>
+      prisma.listing.count({
+        where: {
+          status: { in: ["active", "expired", "sold"] },
+          reviewStatus: { in: ["pending", "changes_requested"] },
+        },
+      })
+    );
+    if (pendingReview > 0) {
+      staffAlerts.push({ kind: "review", count: pendingReview, label: "ad to review", href: "/review" });
+    }
+  }
+  if (user?.isAdmin) {
+    const refundRequests = await withRetry(() =>
+      prisma.payment.count({ where: { status: "refund_requested" } })
+    );
+    if (refundRequests > 0) {
+      staffAlerts.push({ kind: "refund", count: refundRequests, label: "refund request", href: "/admin" });
+    }
+  }
+
+  return <MarketplaceNav user={user} categories={categories} notifications={notifications} staffAlerts={staffAlerts} />;
 }

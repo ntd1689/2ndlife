@@ -19,6 +19,15 @@ export type NavNotification = {
   createdAt: string;
 };
 
+// Staff attention items shown in the bell for reviewers/admins (in-app only,
+// no email): ads awaiting review and pending refund requests.
+export type StaffAlert = {
+  kind: "review" | "refund";
+  count: number;
+  label: string; // singular label, e.g. "ad to review"
+  href: string;
+};
+
 export type NavUser = { email: string; isAdmin: boolean; isReviewer: boolean };
 
 const CATEGORY_ICONS: Record<string, string> = {
@@ -64,11 +73,16 @@ export default function MarketplaceNav({
   user,
   categories,
   notifications,
+  staffAlerts = [],
 }: {
   user: NavUser | null;
   categories: NavCategory[];
   notifications: NavNotification[];
+  staffAlerts?: StaffAlert[];
 }) {
+  const staffTotal = staffAlerts.reduce((sum, a) => sum + a.count, 0);
+  const bellCount = notifications.length + staffTotal;
+
   const [scrolled, setScrolled] = useState(false);
   const [openCategory, setOpenCategory] = useState<string | null>(null);
   const [bellOpen, setBellOpen] = useState(false);
@@ -276,7 +290,7 @@ export default function MarketplaceNav({
             <div className="mk-menu-anchor">
               <button
                 className="mk-icon-btn"
-                aria-label={`Notifications${notifications.length ? ` — ${notifications.length} new` : ""}`}
+                aria-label={`Notifications${bellCount ? ` — ${bellCount} new` : ""}`}
                 aria-haspopup="menu"
                 aria-expanded={bellOpen}
                 onClick={() => {
@@ -286,16 +300,33 @@ export default function MarketplaceNav({
                 }}
               >
                 🔔
-                {notifications.length > 0 && <span className="mk-badge">{notifications.length}</span>}
+                {bellCount > 0 && <span className="mk-badge">{bellCount}</span>}
               </button>
               {bellOpen && (
                 <div className="mk-dropdown mk-notifications" role="menu" aria-label="Notifications">
+                  {staffAlerts.length > 0 && (
+                    <>
+                      <p className="mk-panel-label">Needs your attention</p>
+                      {staffTotal === 0 && <p className="mk-empty">You&apos;re all caught up.</p>}
+                      {staffAlerts
+                        .filter((a) => a.count > 0)
+                        .map((a) => (
+                          <Link key={a.kind} href={a.href} className="mk-notification" role="menuitem" onClick={() => setBellOpen(false)}>
+                            <span className="mk-notif-amount">{a.count}</span>
+                            <span className="mk-notif-body">
+                              {a.count === 1 ? a.label : `${a.label}s`}
+                              <span className="mk-notif-date">{a.kind === "review" ? "Awaiting review" : "Awaiting approval"}</span>
+                            </span>
+                          </Link>
+                        ))}
+                    </>
+                  )}
                   <p className="mk-panel-label">Offers on your ads</p>
                   {notifications.length === 0 && (
                     <p className="mk-empty">No new offers right now.</p>
                   )}
                   {notifications.map((n) => (
-                    <Link key={n.id} href="/my-ads" className="mk-notification" role="menuitem">
+                    <Link key={n.id} href="/my-ads" className="mk-notification" role="menuitem" onClick={() => setBellOpen(false)}>
                       <span className="mk-notif-amount">J${n.amount.toLocaleString()}</span>
                       <span className="mk-notif-body">
                         offer on <b>{n.listingTitle}</b>
@@ -304,7 +335,7 @@ export default function MarketplaceNav({
                     </Link>
                   ))}
                   {notifications.length > 0 && (
-                    <Link href="/my-ads" className="mk-dropdown-footer" role="menuitem">
+                    <Link href="/my-ads" className="mk-dropdown-footer" role="menuitem" onClick={() => setBellOpen(false)}>
                       Review offers in My Ads →
                     </Link>
                   )}
