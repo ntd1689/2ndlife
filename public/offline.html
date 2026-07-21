@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Offline — 2ndLife</title>
+<style>
+  :root { --ink: #1F2A24; --paper: #FBF7EF; --teal: #2D6A63; --mustard: #E2A33B; }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; min-height: 100vh; display: flex; align-items: center; justify-content: center;
+    background: var(--ink); color: var(--paper); text-align: center; padding: 24px;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Inter, sans-serif;
+  }
+  .card { max-width: 360px; }
+  img { width: 96px; height: 96px; border-radius: 20px; margin-bottom: 20px; }
+  h1 { font-size: 22px; margin: 0 0 8px; }
+  p { color: #cfd9d4; line-height: 1.6; margin: 0 0 22px; }
+  button {
+    background: var(--teal); color: var(--paper); border: none; border-radius: 8px;
+    padding: 12px 22px; font-size: 15px; font-weight: 600; cursor: pointer;
+  }
+  button:hover { background: #3E857C; }
+  .dot { color: var(--mustard); }
+</style>
+</head>
+<body>
+  <div class="card">
+    <img src="/icon-192.png" alt="2ndLife" />
+    <h1>You're offline<span class="dot">.</span></h1>
+    <p>We couldn't reach 2ndLife. Check your connection and try again — your marketplace is waiting.</p>
+    <button onclick="location.reload()">Try again</button>
+  </div>
+</body>
+</html>

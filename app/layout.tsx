@@ -1,17 +1,26 @@
 import "./globals.css";
 import Link from "next/link";
+import type { Viewport } from "next";
 import SiteHeader from "./components/SiteHeader";
+import PWARegister from "./components/PWARegister";
 import { CURRENT_VERSION } from "@/lib/changelog";
 
 export const metadata = {
   title: "2ndLife — Buy. Sell. Bid. Repeat.",
   description: "Give your items a second life in second hand. Jamaica's local marketplace.",
+  applicationName: "2ndLife",
+  appleWebApp: { capable: true, title: "2ndLife", statusBarStyle: "default" as const },
+};
+
+export const viewport: Viewport = {
+  themeColor: "#FBF7EF",
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en">
       <body>
+        <PWARegister />
         <SiteHeader />
         {children}
         <footer className="wrap">
