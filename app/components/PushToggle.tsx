@@ -9,6 +9,7 @@ export default function PushToggle() {
   const [state, setState] = useState<State>("loading");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
+  const [testMsg, setTestMsg] = useState("");
 
   useEffect(() => {
     if (!pushSupported()) { setState("unsupported"); return; }
@@ -31,10 +32,31 @@ export default function PushToggle() {
 
   async function disable() {
     setError("");
+    setTestMsg("");
     setBusy(true);
     try {
       await unsubscribeFromPush();
       setState("off");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function sendTest() {
+    setError("");
+    setTestMsg("");
+    setBusy(true);
+    try {
+      const res = await fetch("/api/push/test", { method: "POST" });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) { setError(data.error || "Could not send test."); return; }
+      setTestMsg(
+        data.devices > 0
+          ? `Sent to ${data.devices} device${data.devices === 1 ? "" : "s"} — check your notifications.`
+          : "No subscribed devices found. Turn notifications on here first."
+      );
+    } catch {
+      setError("Could not send test. Please try again.");
     } finally {
       setBusy(false);
     }
@@ -54,7 +76,11 @@ export default function PushToggle() {
       {state === "on" ? (
         <>
           <p className="note" style={{ marginTop: 0 }}>✅ Push notifications are on for this device.</p>
-          <button className="secondary" disabled={busy} onClick={disable}>{busy ? "Working…" : "Turn off notifications"}</button>
+          <div className="btn-row">
+            <button disabled={busy} onClick={sendTest}>{busy ? "Working…" : "Send a test notification"}</button>
+            <button className="secondary" disabled={busy} onClick={disable}>Turn off</button>
+          </div>
+          {testMsg && <p className="note" style={{ marginTop: 8, color: "var(--teal-light)" }}>{testMsg}</p>}
         </>
       ) : (
         <>
