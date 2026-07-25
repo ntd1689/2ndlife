@@ -41,13 +41,15 @@ export const metadata: Metadata = {
     description: DESCRIPTION,
     url: SITE_URL,
     locale: "en_JM",
-    images: [{ url: "/icon-512.png", width: 512, height: 512, alt: "2ndLife" }],
+    images: [
+      { url: "/og-image.png", width: 1200, height: 630, alt: "2ndLife — Jamaica's local marketplace" },
+    ],
   },
   twitter: {
-    card: "summary",
+    card: "summary_large_image",
     title: TITLE,
     description: DESCRIPTION,
-    images: ["/icon-512.png"],
+    images: ["/og-image.png"],
   },
 };
 

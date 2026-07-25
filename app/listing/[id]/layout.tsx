@@ -85,13 +85,13 @@ export async function generateMetadata({
       title: listing.title,
       description,
       url,
-      images: images.length ? images : ["/icon-512.png"],
+      images: images.length ? images : ["/og-image.png"],
     },
     twitter: {
-      card: images.length ? "summary_large_image" : "summary",
+      card: "summary_large_image",
       title: listing.title,
       description,
-      images: images.length ? images : ["/icon-512.png"],
+      images: images.length ? images : ["/og-image.png"],
     },
   };
 }
