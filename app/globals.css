@@ -318,6 +318,20 @@ input, select, textarea {
 }
 .mk-empty { font-size: 13px; color: #8a8374; padding: 6px 10px 10px; }
 
+.mk-push-prompt {
+  display: flex; flex-direction: column; gap: 8px;
+  padding: 10px; margin: 4px; border-radius: 6px;
+  background: #eef5f2; border: 1px solid #d9e7e2; font-size: 13px; color: var(--ink);
+}
+.mk-push-prompt-actions { display: flex; gap: 8px; align-items: center; }
+.mk-push-prompt button {
+  font-size: 13px; padding: 6px 12px; border-radius: 6px; border: none; cursor: pointer;
+  background: var(--teal); color: var(--paper); font-weight: 600;
+}
+.mk-push-prompt button:hover { background: var(--teal-light); }
+.mk-push-prompt .mk-push-dismiss { background: transparent; color: #6b6b63; font-weight: 500; }
+.mk-push-prompt .mk-push-dismiss:hover { background: #e6ecea; color: var(--ink); }
+
 /* Category bar */
 .mk-cats { position: relative; }
 .mk-cats-row {

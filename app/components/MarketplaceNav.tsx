@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { PARISHES } from "@/lib/data/parishes";
+import BellPushPrompt from "./BellPushPrompt";
 
 export type NavCategory = {
   name: string;
@@ -304,6 +305,7 @@ export default function MarketplaceNav({
               </button>
               {bellOpen && (
                 <div className="mk-dropdown mk-notifications" role="menu" aria-label="Notifications">
+                  <BellPushPrompt />
                   {staffAlerts.length > 0 && (
                     <>
                       <p className="mk-panel-label">Needs your attention</p>

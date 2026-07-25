@@ -40,6 +40,7 @@ export default function PostAdPage() {
 
   const [code, setCode] = useState("");
   const [phone, setPhone] = useState("");
+  const [name, setName] = useState("");
 
   const [title, setTitle] = useState("");
   const [price, setPrice] = useState("");
@@ -76,8 +77,10 @@ export default function PostAdPage() {
         const data = await res.json();
         if (cancelled || !data.user) return;
         otp.setEmail(data.user.email);
-        if (data.user.phone) {
-          setPhone(data.user.phone);
+        if (data.user.name) setName(data.user.name);
+        if (data.user.phone) setPhone(data.user.phone);
+        // Both name and phone are required before an ad can go live.
+        if (data.user.phone && data.user.name) {
           setStep("details");
         } else {
           setStep("phone");
@@ -123,21 +126,24 @@ export default function PostAdPage() {
     }
   }
 
-  async function confirmPhone(skip = false) {
+  async function confirmPhone() {
     setError("");
-    if (!skip) {
-      if (!phone) { setError("Enter a phone number, or skip for now"); return; }
-      try {
-        const res = await fetch("/api/me/phone", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ phone }),
-        });
-        if (!res.ok) { setError("Could not save phone number"); return; }
-      } catch {
-        setError("Network issue while saving phone number. Check your connection and try again.");
+    if (!name.trim()) { setError("Enter your name"); return; }
+    if (phone.trim().length < 7) { setError("Enter a valid phone number so buyers can reach you"); return; }
+    try {
+      const res = await fetch("/api/me/profile", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name: name.trim(), phone: phone.trim() }),
+      });
+      if (!res.ok) {
+        const d = await res.json().catch(() => ({}));
+        setError(d.error || "Could not save your details");
         return;
       }
+    } catch {
+      setError("Network issue while saving your details. Check your connection and try again.");
+      return;
     }
     setStep("details");
   }
@@ -337,16 +343,17 @@ export default function PostAdPage() {
       {step === "phone" && (
         <div className="panel">
           <div className="demo-note">
-            Buyers will see this number to contact you directly. We don't verify it by SMS — just make sure it's correct.
+            A couple of details buyers need before your ad goes live. Your number is shown so buyers can reach you — we don't verify it by SMS.
           </div>
           <div className="field">
-            <label>Phone number (optional, recommended)</label>
-            <input value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="+1 876 555 0100" />
+            <label>Your name</label>
+            <input value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. Marcia B." />
           </div>
-          <div className="btn-row">
-            <button onClick={() => confirmPhone(false)}>Save &amp; continue</button>
-            <button className="secondary" onClick={() => confirmPhone(true)}>Skip for now</button>
+          <div className="field">
+            <label>Phone number</label>
+            <input value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="+1 876 555 0100" type="tel" />
           </div>
+          <button onClick={confirmPhone}>Save &amp; continue</button>
         </div>
       )}
 

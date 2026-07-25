@@ -43,9 +43,12 @@ export default function ProfilePage() {
     setError("");
     setSaved(false);
 
+    if (!name.trim()) { setError("Display name is required."); return; }
+    if (phone.trim().length < 7) { setError("A valid phone number is required."); return; }
+
     const body: { name?: string; phone?: string } = {};
-    if (name.trim() && name.trim() !== (me?.name ?? "")) body.name = name.trim();
-    if (phone.trim() && phone.trim() !== (me?.phone ?? "")) body.phone = phone.trim();
+    if (name.trim() !== (me?.name ?? "")) body.name = name.trim();
+    if (phone.trim() !== (me?.phone ?? "")) body.phone = phone.trim();
     if (Object.keys(body).length === 0) {
       setError("Nothing to save yet — change your name or phone first.");
       return;

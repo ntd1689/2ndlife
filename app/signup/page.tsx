@@ -34,6 +34,7 @@ export default function SignupPage() {
 
   async function requestCode(isResend: boolean) {
     setError("");
+    if (!name.trim()) { setError("Please enter your name"); return; }
     setBusy(true);
     const err = await otp.sendOtp(isResend);
     setBusy(false);
@@ -78,31 +79,29 @@ export default function SignupPage() {
     }
   }
 
-  async function finish(skip = false) {
+  async function finish() {
     setError("");
-    if (!skip) {
-      if (!phone.trim()) {
-        setError("Enter a phone number, or skip for now");
+    if (phone.trim().length < 7) {
+      setError("Enter a valid phone number so buyers can reach you");
+      return;
+    }
+    setBusy(true);
+    try {
+      const res = await fetch("/api/me/profile", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ phone: phone.trim() }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setError(data.error || "Could not save phone number");
         return;
       }
-      setBusy(true);
-      try {
-        const res = await fetch("/api/me/profile", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ phone: phone.trim() }),
-        });
-        const data = await res.json().catch(() => ({}));
-        if (!res.ok) {
-          setError(data.error || "Could not save phone number");
-          return;
-        }
-      } catch {
-        setError("Network issue while saving phone number. Please try again.");
-        return;
-      } finally {
-        setBusy(false);
-      }
+    } catch {
+      setError("Network issue while saving phone number. Please try again.");
+      return;
+    } finally {
+      setBusy(false);
     }
     router.push("/my-ads");
     router.refresh();
@@ -136,7 +135,7 @@ export default function SignupPage() {
             We'll email you a one-time code to verify your account — no phone or SMS needed to sign up.
           </div>
           <div className="field">
-            <label>Your name (optional)</label>
+            <label>Your name</label>
             <input value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. Marcia B." />
           </div>
           <div className="field">
@@ -193,13 +192,10 @@ export default function SignupPage() {
             Buyers will see this number to contact you directly. We don't verify it by SMS — just make sure it's correct.
           </div>
           <div className="field">
-            <label>Phone number (optional, recommended)</label>
-            <input value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="+1 876 555 0100" />
+            <label>Phone number</label>
+            <input value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="+1 876 555 0100" type="tel" />
           </div>
-          <div className="btn-row">
-            <button disabled={busy} onClick={() => finish(false)}>{busy ? "Saving…" : "Save & finish"}</button>
-            <button className="secondary" disabled={busy} onClick={() => finish(true)}>Skip for now</button>
-          </div>
+          <button disabled={busy} onClick={finish}>{busy ? "Saving…" : "Save & finish"}</button>
         </div>
       )}
     </div>
